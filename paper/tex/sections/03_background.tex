@@ -11,22 +11,34 @@ it needs.
 
 \begin{figure}[t]
   \centering
-  \resizebox{\linewidth}{!}{%
+  \resizebox{\linewidth}{!}{% 
   \begin{tikzpicture}[
-    node distance=5mm and 6mm,
     box/.style={draw, rounded corners=2pt, align=center,
-                minimum height=9mm, inner sep=3pt, font=\small},
-    cal/.style={box, fill=black!5},
+                minimum height=10mm, minimum width=20mm,
+                inner sep=4pt, font=\small},
+    cal/.style={box, fill=black!5, text width=31mm},
     arr/.style={-{Latex[length=1.6mm]}, thick},
-    lab/.style={font=\scriptsize\itshape, text=black!70}]
-    \node[box] (x) {EEG epoch\\$X_t\in\bR^{3000}$};
-    \node[box, right=of x] (f) {frozen\\backbone $f$};
-    \node[box, right=of f] (p) {softmax\\$p_t$};
-    \node[box, right=of p] (h) {HMM\\forward--backward};
-    \node[box, right=of h] (g) {posterior\\$\gamma_t$};
-    \node[box, below=of g] (s) {score\\$s_t(y)$};
-    \node[box, left=of s] (q) {threshold\\$\wh q(\alpha_t)$};
-    \node[box, left=of q] (c) {set\\$\cC_t$};
+    lab/.style={font=\scriptsize\itshape, text=black!70},
+    note/.style={font=\scriptsize, align=center, text=black!75}]
+
+    % First pass: one EEG epoch becomes a temporally smoothed posterior.
+    \node[box] (x) at (0,0) {EEG epoch\\$X_t\in\bR^{3000}$};
+    \node[box] (f) at (2.7,0) {frozen\\backbone $f$};
+    \node[box] (p) at (5.4,0) {softmax\\$p_t$};
+    \node[box] (h) at (8.5,0) {HMM\\forward--backward};
+    \node[box] (g) at (11.8,0) {posterior\\$\gamma_t$};
+
+    % Second pass: posterior, calibrated threshold, and prediction set.
+    \node[box] (s) at (11.8,-1.8) {score\\$s_t(y)$};
+    \node[box] (q) at (8.5,-1.8) {threshold\\$\wh q(\alpha_t)$};
+    \node[box] (c) at (5.4,-1.8) {set\\$\cC_t$};
+
+    % The two auxiliary inputs sit on their own rows and cannot overlap.
+    \node[cal] (cal) at (7.6,-3.75)
+      {calibration subjects\\$\{S_{j,t}\}$\\$\rightarrow$ pooled quantile};
+    \node[cal] (fb) at (12.0,-3.75)
+      {review: label\\$Y_t$ after $\cC_t$};
+
     \draw[arr] (x) -- (f);
     \draw[arr] (f) -- (p);
     \draw[arr] (p) -- (h);
@@ -34,18 +46,21 @@ it needs.
     \draw[arr] (g) -- (s);
     \draw[arr] (s) -- (q);
     \draw[arr] (q) -- (c);
-    \node[cal, below=9mm of q, xshift=-8mm, text width=42mm] (cal)
-      {calibration subjects\\ $\{S_{j,t}\}$ $\to$ pooled quantile};
-    \draw[arr, dashed] (cal) -- (q);
-    \node[cal, below=9mm of s] (fb) {review: $Y_t$ after $\cC_t$};
-    \draw[arr, dashed] (c.south) .. controls ++(0,-14mm) and ++(20mm,-14mm) .. (fb.west);
+    \draw[arr, dashed] (cal.north) -- (q.south);
     \draw[arr, dashed] (fb.north) -- (s.south);
-    \node[lab, above=1mm of h] {transitions from training labels};
+
+    % Feedback takes a separate lower route, leaving the calibration box clear.
+    \draw[arr, dashed] (c.south) -- (5.4,-5.1) -- (11.8,-5.1) -- (fb.south);
+    \node[note] at (8.6,-5.45) {reviewed labels feed the adaptive stream};
+
+    \node[lab, above=2mm of h] {transition matrix from training labels};
   \end{tikzpicture}}%
-  \caption{Overview. The backbone is frozen and the HMM transitions are
-  estimated from training labels. The threshold comes from the calibration
-  subjects; the online rule uses the reviewed label as feedback. The dashed
-  path exists only in the per-patient adaptive regime.}
+  \caption{Overview of the set-valued sleep-staging pipeline. A frozen
+  backbone produces epoch probabilities; forward--backward inference uses
+  transition probabilities estimated from training labels to form a smoothed
+  posterior. The calibration subjects determine the threshold, and the
+  reviewed stage label can update the per-patient adaptive threshold. Dashed
+  paths are used only in the adaptive regime.}
   \label{fig:pipeline}
 \end{figure}
 
