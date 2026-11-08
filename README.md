@@ -1,4 +1,4 @@
-# SleepCP — patient-level conformal prediction for sleep staging
+# SleepCP — patient-adaptive conformal prediction for sleep staging
 
 Code and results for
 
