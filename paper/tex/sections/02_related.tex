@@ -1,0 +1,134 @@
+\section{Related work}
+\label{sec:related}
+
+\subsection{Automatic sleep staging}
+\label{sec:related-staging}
+
+Single-channel EEG sleep staging is dominated by compact convolutional and
+recurrent architectures. \citet{lawhern2018} introduced EEGNet, a
+depthwise-separable convolutional network that remains a standard baseline;
+\citet{supratak2017} and \citet{phan2019seqsleepnet} model the sequence of
+epochs with recurrent layers over per-epoch convolutional features;
+\citet{perslev2021} use a fully convolutional network over the whole night;
+and \citet{phan2022sleepformer} replace recurrence with self-attention and
+add an entropy-based uncertainty estimate. Recent work in this journal
+continues the same line on the same corpus, with rhythm-aware contrastive
+representation learning \citep{zhou2026bspc} and adaptive multi-scale
+convolution with local attention \citep{fan2025bspc}, and statistical
+modelling of the sleep EEG itself \citep{hatamoto2025}. End-to-end networks
+can learn directly from raw single-channel EEG \citep{li2021endtoend}, and
+hybrid convolutional--HMM designs recover temporal continuity for point
+prediction \citep{yang2021hmm}; neither construction supplies a calibrated
+set whose coverage is evaluated per patient. A broad evaluation of
+contemporary staging methods also illustrates how strongly reported
+performance depends on the dataset, preprocessing, and evaluation protocol
+\citep{sarkar2022evaluation}. Reported accuracy on
+Sleep-EDF is typically \SIrange{82}{87}{\percent} with Cohen's kappa around
+$0.75$--$0.82$; N1 remains the hardest class, with F1 often below $0.5$,
+reflecting the poor inter-scorer agreement of that stage
+\citep{rosenberg2013}.
+
+Evaluation in this literature is usually epoch-level accuracy under a
+subject-wise split, sometimes with a separate held-out cohort. Uncertainty,
+when reported, is reported as a calibration error
+\citep{guo2017,phan2022sleepformer} rather than as a coverage guarantee, and
+almost always in aggregate over epochs.
+
+\subsection{Uncertainty quantification for sleep staging}
+\label{sec:related-uq}
+
+Monte-Carlo dropout, deep ensembles, evidential deep learning and Bayesian
+last layers all produce a per-epoch confidence, and \citet{phan2022sleepformer}
+use predictive entropy to flag epochs for review. These scores rank epochs by
+difficulty but carry no statement that the true stage is inside the returned
+set with a given probability. Selective prediction for sleep staging has been
+studied by \citet{cover2026}, who learn an error-ranking score and accept a
+fixed fraction of epochs subject to an empirical risk target, deferring the
+remainder to a larger model; this is complementary to our work, since
+selective prediction returns a point label plus an abstention whereas
+conformal prediction returns a set with a distribution-free coverage
+guarantee, but the risk control is empirical rather than finite-sample.
+Conformal prediction has also been embedded as a component of a
+multiple-instance sleep pipeline \citep{conmil2025}, without a study of
+coverage under subject shift. Uncertainty-guided pipelines such as U-PASS
+use uncertainty operationally during sleep-model development
+\citep{heremans2024upass}; the present work instead evaluates the realised
+coverage and workload of the deployed set predictor. Recent work on sleep
+staging has emphasised the distinction between aleatoric uncertainty,
+reflecting genuine ambiguity among scorers or signals, and epistemic
+uncertainty, reflecting limited model knowledge \citep{vangorp2022certainty}.
+Conformal sets address the second object directly by controlling the error
+rate of a predictive set, while their purity and workload reveal the first.
+
+\paragraph{The evaluation gap}
+Expected calibration error, maximum calibration error and the Brier score
+measure the agreement between confidence and accuracy in aggregate. They say
+nothing about whether a \emph{set} contains the truth, and they are computed
+on the same pooled sample that hides subject heterogeneity. In our
+experiments the EEGNet backbone, with an ECE of $0.030$, still leaves its
+worst patient $12.8$ points below nominal coverage, which is the practical
+failure mode that calibration metrics do not detect.
+
+\subsection{Conformal prediction}
+\label{sec:related-cp}
+
+Split conformal prediction \citep{vovk2005,lei2018,angelopoulos2023gentle}
+gives finite-sample marginal coverage under exchangeability. Adaptive
+prediction sets (APS) and their regularised variant (RAPS)
+\citep{romano2020,angelopoulos2021raps} adapt set size to the difficulty of
+each example; Mondrian and class-conditional CP \citep{vovk2012} give
+per-class coverage, which on our cohort shrinks sets rather than enlarging
+them but leaves a residual patient gap because patients differ in ways that
+are not their stage mix; weighted CP
+\citep{tibshirani2019} handles a known covariate shift. None of these
+provides a per-patient guarantee when the exchangeable unit is the patient
+rather than the epoch, and \citet{barber2023} show that without
+exchangeability only a weaker, non-vanishing bound is available.
+
+Adaptive conformal inference \citep{gibbs2021} replaces exchangeability with a
+long-run coverage guarantee along a stream, updating the target miscoverage
+after each observed label; \citet{angelopoulos2024} analyse the step-size schedule
+and show that decaying steps with $\sum_t\gamma_t=\infty$ and
+$\sum_t\gamma_t^2<\infty$ give the strongest guarantee. Standard ACI runs a
+single stream over all observations, so its guarantee is again pooled; we
+instead run one stream per patient, which is the natural unit of clinical
+deployment and which, to our knowledge, has not been evaluated for
+five-class sleep staging.
+
+\paragraph{Structured and non-exchangeable data}
+\citet{nettasinghe2023} extend CP to hidden Markov models by partitioning the
+process into exchangeable blocks via de Finetti's theorem for Markov chains,
+producing a confidence set for a sequence through the filtering recursion.
+Our block-level construction shares the motivation --- blocks, not epochs,
+are the exchangeable unit --- but differs in what is produced: they construct
+a set of sequences, whereas we project a scalar block-level conformal set onto
+each position with a forward--backward dynamic program, which gives
+simultaneous per-position coverage at $O(LK^2)$. We show in
+\Cref{sec:results-temporal} that this projection, while valid, is too loose
+to be useful, which is itself informative for anyone considering the
+construction.
+
+\paragraph{Time-series conformal prediction}
+A parallel literature targets real-valued forecasting under temporal
+dependence. EnbPI \citep{xu2021} bootstraps the residuals of a sequential
+predictor and calibrates a quantile of their running maximum, so the interval
+adapts to serial correlation without exchangeability; CopulaCPTS
+\citep{stankeviciute2021} models the joint distribution of multi-step
+residuals with a copula so that coverage holds for the whole forecast path;
+and \citet{zaffran2022} update the threshold online for non-stationary
+series. Our target is a categorical sequence with strong regime structure,
+and the temporal information enters through the HMM posterior rather than
+through a residual process. The path-level coverage those methods target is
+what our SeqCP-Block constructor formalises, and
+\Cref{sec:results-temporal} reports that on sleep blocks it is vacuous.
+
+\paragraph{Healthcare and EEG}
+\citet{chatterjee2026} show that split CP on EEG event classification loses
+over 20 coverage points under patient shift and that per-patient
+recalibration recovers most of it; this is the closest prior result to our
+adaptive component, and we treat it as such. Our contribution there is not
+the observation that personalisation helps but the deployment protocol: how
+much to personalise, chosen by leave-one-subject-out simulation on the
+calibration cohort rather than on the test patients; a streaming variant that
+needs only one label at a time; and an evaluation that reads coverage against
+set size for a five-class, strongly imbalanced task under subject-wise folds.

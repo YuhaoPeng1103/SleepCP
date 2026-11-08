@@ -1,0 +1,149 @@
+\section{Discussion}
+\label{sec:discussion}
+
+\subsection{Why smoothing helps and the dynamic program does not}
+\label{sec:disc-why}
+
+The two temporal results are not in tension; they follow from the same fact.
+Split CP calibrates a \emph{scalar} per epoch and produces a set by
+thresholding it. Any transformation of the model output that makes the true
+label's scalar smaller relative to the other labels --- which the
+forward--backward posterior does, because it integrates evidence over the
+whole recording --- improves efficiency without touching validity. The
+dynamic program does something different: it minimises over \emph{paths}, and
+a path-level minimum is always at most a point-level one, so the resulting
+level comparison is looser rather than tighter. The transition structure that
+the DP is meant to exploit has already been absorbed into the smooth posterior
+at the point where the score is computed. This is why the ablation at $\beta=0$
+is the decisive one: it shows the two constructions are identical there, and
+positive $\beta$ only adds looseness.
+
+The practical consequence is a simpler recipe than the one we set out to
+build: smooth, score the deficit, calibrate on subjects, adapt per patient.
+That recipe needs no dynamic program and no block-level calibration.
+It also separates two sources of ambiguity. Irreducible disagreement over an
+N1 or transition epoch remains visible as a larger set, whereas a mismatch
+between a new patient and the calibration cohort is corrected by the adaptive
+stream. This is the operational counterpart of the aleatoric--epistemic
+distinction discussed for sleep staging \citep{vangorp2022certainty}.
+
+\subsection{What per-patient adaptation costs and buys}
+\label{sec:disc-aci}
+
+Per-patient ACI requires labels on a delay. In sleep staging the delay is the
+technologist's review, so the feedback assumption is realistic, but it does
+mean that the guarantee is about the \emph{realised} sequence of predictions
+and not about a prediction made before any review has happened. The first
+epochs of a new patient are therefore predicted with the pooled threshold,
+and adaptation only begins to pay after a few dozen epochs. The coverage
+vectors in \Cref{sec:results-aci} show the mechanism: easy patients lose
+coverage that they did not need, hard patients gain coverage that they did,
+and the aggregate changes by less than a point. This reallocation is the
+point, not a side effect.
+
+The step scale is the one hyperparameter, and it is chosen without test
+labels by simulating held-out streams inside the calibration cohort. That
+choice is conservative: it optimises the mean one-sided shortfall rather than
+the worst patient, so a deployment that cares about the single worst patient
+should select on that criterion instead; the released code exposes the choice
+as \texttt{--criterion worst}.
+
+\subsection{Reading the sets in a review workflow}
+\label{sec:disc-reading}
+
+A single coverage number is not enough to evaluate a set-valued stager, for
+three reasons that this study makes concrete. It is marginal over epochs and
+therefore blind to the patient whose sets are systematically too small. It is
+satisfied trivially by large sets, so it must be read against set size and
+review workload. And it says nothing about temporal behaviour, which in a
+hypnogram is the difference between a usable display and a flickering one. We
+would therefore argue that a conformal sleep-staging paper should report
+per-patient coverage, the fraction of patients below nominal, set size, and a
+temporal consistency statistic, and should use subject-wise folds that
+partition the cohort.
+
+Those four numbers translate directly into the review step. A night of eight
+hours contains 960 epochs; at the $0.76$ workload of pooled APS, 730 of them
+would be sent back for adjudication, whereas the smoothed deficit score sends
+about 150, plus the empty sets that also return to the reviewer. The size of a
+non-singleton set is itself informative, because it separates ``N2 or N3''
+from ``any of four stages'': only the first is a question a technologist can
+settle by re-reading a page of the record. It is worth being explicit that a
+set of two stages is not automatically a weaker statement than a point label.
+Inter-scorer studies show that two trained technologists frequently disagree
+on N1 and on transition epochs \citep{rosenberg2013}, so an admitted ambiguity
+of that size is commensurate with the reference standard against which any
+stager is judged, whereas a confident point prediction that is wrong is not.
+
+The resulting deployment pattern is short. The stager is frozen; its HMM
+transitions come from the training labels; one pooled threshold is calibrated
+on the handful of scored nights a unit already has; and the per-patient
+adaptive stream runs during review, consuming each stage label after it has
+been confirmed. Nothing in the procedure is fitted to the patient being
+scored, which is the property that makes it usable in a unit that cannot
+collect labelled epochs in advance.
+
+\subsection{Limitations}
+\label{sec:limitations}
+
+\paragraph{Single channel, five classes}
+All experiments use Fpz--Cz only and the five AASM stages. Multi-channel
+recordings, and problems that use the finer R\&K stages, will have different
+score distributions; the methods apply unchanged, but the specific numbers
+should not be extrapolated.
+
+\paragraph{Cohort size}
+The main protocol tests four subjects per fold, and the merged estimate is
+over 20 subjects. This is small, and the seed spread we report is a
+spread over training runs rather than over patient cohorts. The extended
+cohort in \Cref{sec:results-cohort} is a partial answer, but a
+multi-centre study with several hundred patients would be needed to put a
+confidence interval on the worst-patient statistic.
+
+\paragraph{Feedback assumption}
+ACI needs the label after the prediction. In a fully automatic deployment
+with no review, the stream is unavailable and only the pooled or warm-up
+rules apply.
+
+\paragraph{N1}
+The backbones used here reproduce the known weakness of the literature: N1
+F1 is low. The consequence for the sets is asymmetric. Pooled APS
+over-covers N1 because its threshold is loose, whereas the smoothed deficit
+score omits N1 in more than half of the N1 epochs (coverage $0.43$ against
+nominal $0.90$), because the model is confidently wrong on exactly those
+epochs. This qualifies the efficiency claim of \Cref{sec:results-score};
+thresholding the same score per stage restores every stage to nominal
+coverage, and \Cref{tab:perclass} reports what that costs in set size
+($1.74$ against $1.53$ labels). A stronger backbone would shift every number;
+we expect, but have not shown, that it would leave the ordering of the methods
+unchanged, because the ordering is driven by the protocol rather than by the
+model.
+
+\paragraph{No clinical evaluation}
+We make no claim that a technologist working with these sets is faster or
+more accurate than one working with point predictions. Review workload is a
+proxy, and it should be validated in a reader study before deployment.
+
+\section{Conclusions}
+\label{sec:conclusion}
+
+Conformal prediction is a natural way to give a clinician a statement about a
+sleep-stage prediction that is honest under subject shift. We have shown
+that the statement the standard method makes is the wrong one --- pooled over
+epochs rather than per patient --- and that two simple changes together
+address it.
+Scoring
+the smoothed posterior deficit shrinks the average set by about forty per cent
+at comparable coverage and cuts the fraction of epochs needing manual
+review from $0.76$ to $0.16$ (to $0.49$ if the threshold is conditioned on the
+stage, which holds every stage at nominal), and running an independent
+adaptive stream per patient moves coverage from easy patients to hard ones
+without using any test labels for tuning. The dynamic-programming sequence constructors that
+motivated this work turn out not to help, for a reason we can prove, and we
+report that result explicitly, together with the exact protocol and code
+needed to check it.
+
+The practical form of the result is a stager that reports, epoch by epoch, the
+stages it cannot rule out, and a number of epochs it cannot settle. That does
+not replace the technologist's review; it tells the technologist where the
+review is worth spending.

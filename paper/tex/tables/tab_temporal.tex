@@ -1,0 +1,28 @@
+\begin{table}[t]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\caption{Temporal conformal prediction at $\alpha=0.1$, block length $L=10$. The first four rows use every test epoch; the rows below them use only the epochs inside complete blocks, and the per-epoch baseline above the SeqCP-Margin block is recalibrated on exactly those epochs.}
+\label{tab:temporal}
+\resizebox{\ifdim\width>\linewidth \linewidth\else\width\fi}{!}{%
+\begin{tabular}{lrrrrrr}
+\toprule
+Method & Coverage & Set size & Singleton & Review & Consistency & Seq.\ coverage \\
+\midrule
+Smoothed deficit (all epochs) & 0.889 $\pm$ 0.044 & 1.531 $\pm$ 0.325 & 0.841 $\pm$ 0.080 & 0.159 $\pm$ 0.080 & 0.942 $\pm$ 0.018 & -- \\
+Smoothed deficit, per stage & 0.903 $\pm$ 0.034 & 1.741 $\pm$ 0.252 & 0.506 $\pm$ 0.104 & 0.494 $\pm$ 0.104 & 0.884 $\pm$ 0.016 & -- \\
+Smoothed APS (all epochs) & 0.903 $\pm$ 0.037 & 2.223 $\pm$ 0.170 & 0.229 $\pm$ 0.053 & 0.712 $\pm$ 0.062 & 0.753 $\pm$ 0.036 & -- \\
+Per-epoch APS (all epochs) & 0.898 $\pm$ 0.038 & 2.537 $\pm$ 0.207 & 0.167 $\pm$ 0.051 & 0.765 $\pm$ 0.060 & 0.680 $\pm$ 0.037 & -- \\
+\addlinespace[3pt]
+Smoothed deficit, $L=10$ epochs & 0.889 $\pm$ 0.045 & 1.535 $\pm$ 0.326 & 0.840 $\pm$ 0.080 & 0.160 $\pm$ 0.080 & 0.942 $\pm$ 0.018 & -- \\
+SeqCP-Margin L10, $\beta=0$ & 0.889 $\pm$ 0.045 & 1.535 $\pm$ 0.326 & 0.840 $\pm$ 0.080 & 0.160 $\pm$ 0.080 & 0.942 $\pm$ 0.018 & 0.668 $\pm$ 0.089 \\
+SeqCP-Margin L10, $\beta=0.5$ & 0.890 $\pm$ 0.045 & 1.941 $\pm$ 0.616 & 0.688 $\pm$ 0.215 & 0.312 $\pm$ 0.215 & 0.865 $\pm$ 0.061 & 0.682 $\pm$ 0.096 \\
+SeqCP-Margin L10, $\beta=1$ & 0.891 $\pm$ 0.045 & 1.993 $\pm$ 0.634 & 0.655 $\pm$ 0.230 & 0.345 $\pm$ 0.230 & 0.864 $\pm$ 0.060 & 0.688 $\pm$ 0.096 \\
+SeqCP-Margin L10, $\beta=2$ & 0.889 $\pm$ 0.045 & 2.016 $\pm$ 0.625 & 0.666 $\pm$ 0.166 & 0.334 $\pm$ 0.166 & 0.863 $\pm$ 0.062 & 0.680 $\pm$ 0.080 \\
+\addlinespace[3pt]
+SeqCP-Block L10, $\beta=0$ & 0.919 $\pm$ 0.032 & 4.570 $\pm$ 0.167 & 0.005 $\pm$ 0.002 & 0.914 $\pm$ 0.033 & 0.909 $\pm$ 0.035 & 0.917 $\pm$ 0.033 \\
+SeqCP-Block L10, $\beta\ge0.5$ & 1.000 $\pm$ 0.000 & 5.000 $\pm$ 0.000 & 0.000 $\pm$ 0.000 & 1.000 $\pm$ 0.000 & 1.000 $\pm$ 0.000 & 1.000 $\pm$ 0.000 \\
+\bottomrule
+\end{tabular}}
+\par\vspace{2pt}{\footnotesize ``Review'' is the fraction of epochs whose set contains more than one stage and would need adjudication; ``Consistency'' is the mean Jaccard overlap of adjacent prediction sets within a recording; ``Seq.\ coverage'' is the fraction of blocks whose every epoch is covered. The SeqCP-Block rows at $\beta=0.5,1,2$ coincide exactly; $L=20$ and $L=30$ change no conclusion; the full sweep is in the released JSON. SeqCP-Margin at $\beta=0$ coincides with the per-epoch baseline of the same name to every reported digit, which is the numerical check of \Cref{prop:reduction}; realised coverage is an expectation over calibration draws, not a bound for a single calibration set.}
+\end{table}

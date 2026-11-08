@@ -1,0 +1,5 @@
+Marginal conformal coverage can hide patients below nominal.
+Subject-wise folds expose a 12.6-point worst-patient shortfall.
+Posterior smoothing cuts sets from 2.54 to 1.53 stages per epoch.
+Review workload falls from 76% to 16% of epochs on 30-s scoring.
+Per-patient adaptation lifts worst-patient coverage from 0.77 to 0.89.

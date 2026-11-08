@@ -1,0 +1,16 @@
+\begin{table}[t]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\caption{Backbone classification performance on the test subjects, over all folds and seeds (mean $\pm$ standard deviation).}
+\label{tab:training}
+\resizebox{\ifdim\width>\linewidth \linewidth\else\width\fi}{!}{%
+\begin{tabular}{lrrrrr}
+\toprule
+Model & Accuracy & Cohen's $\kappa$ & Macro-F1 & ECE & Runs \\
+\midrule
+\texttt{eegnet} & 0.781 $\pm$ 0.042 & 0.698 $\pm$ 0.058 & 0.644 $\pm$ 0.034 & 0.030 $\pm$ 0.013 & 15 \\
+\texttt{sleepcnn} & 0.803 $\pm$ 0.042 & 0.728 $\pm$ 0.058 & 0.711 $\pm$ 0.043 & 0.032 $\pm$ 0.017 & 15 \\
+\bottomrule
+\end{tabular}}
+\end{table}

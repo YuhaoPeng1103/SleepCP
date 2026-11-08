@@ -1,0 +1,20 @@
+\begin{table}[t]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\caption{Coverage against the number of calibration subjects $k$, subsampling the available calibration subjects and repeating 50 times per run; rows are averaged over all runs, and $\pm$ is the standard deviation across runs. ``worst'' is the minimum per-subject coverage within a run (each run tests four subjects), averaged over runs, so it is not the merged-cohort worst patient of \Cref{tab:sacp}; it is the quantity that this sweep can hold fixed while $k$ varies. The deficit score's worst-patient coverage is flat in $k$: the patient gap is not calibration-sampling noise.}
+\label{tab:cohort-size}
+\resizebox{\ifdim\width>\linewidth \linewidth\else\width\fi}{!}{%
+\begin{tabular}{rrrrr}
+\toprule
+\multicolumn{1}{c}{} & \multicolumn{2}{c}{APS} & \multicolumn{2}{c}{Posterior deficit} \\\cmidrule(lr){2-3}\cmidrule(lr){4-5}
+$k$ & cov. & worst & cov. & worst \\
+\midrule
+1 & 0.882\,$\pm$\,0.037 & 0.819\,$\pm$\,0.058 & 0.887\,$\pm$\,0.042 & 0.848\,$\pm$\,0.058 \\
+2 & 0.894\,$\pm$\,0.036 & 0.833\,$\pm$\,0.060 & 0.886\,$\pm$\,0.043 & 0.847\,$\pm$\,0.059 \\
+3 & 0.896\,$\pm$\,0.038 & 0.837\,$\pm$\,0.062 & 0.889\,$\pm$\,0.044 & 0.850\,$\pm$\,0.060 \\
+4 & 0.898\,$\pm$\,0.038 & 0.838\,$\pm$\,0.062 & 0.889\,$\pm$\,0.044 & 0.849\,$\pm$\,0.061 \\
+\bottomrule
+\end{tabular}}
+\par\vspace{2pt}{\footnotesize APS columns are the raw-softmax score; deficit columns use the smoothed posterior deficit. Nominal coverage is 0.900. Calibration pool: 4 subjects.}
+\end{table}

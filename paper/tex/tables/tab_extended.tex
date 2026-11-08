@@ -1,0 +1,25 @@
+\begin{table}[t]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\caption{The headline comparison of \Cref{tab:sacp} repeated on the 78-subject cohort, at seed 0. Test blocks of fifteen or sixteen subjects make each fold's estimate less sensitive to a single night, while the minimum over all subjects is naturally more extreme than in the smaller cohort.}
+\label{tab:extended}
+\resizebox{\ifdim\width>\linewidth \linewidth\else\width\fi}{!}{%
+\begin{tabular}{lrrrrrrr}
+\toprule
+Method & Coverage & Worst subj. & $p_{10}$ subj. & SD & Below & Set size & Singleton \\
+\midrule
+Random-epoch split & 0.900 & -- & -- & -- & -- & 2.898 & -- \\
+Pooled (APS) & 0.898 $\pm$ 0.036 & 0.641 & 0.822 & 0.0667 & 0.33 & 2.890 $\pm$ 0.231 & 0.059 $\pm$ 0.031 \\
+Pooled (RAPS) & 0.905 $\pm$ 0.031 & 0.751 & 0.854 & 0.0380 & 0.37 & 1.845 $\pm$ 0.271 & 0.306 $\pm$ 0.204 \\
+Mondrian (per class) & 0.908 $\pm$ 0.030 & 0.681 & 0.840 & 0.0599 & 0.33 & 2.306 $\pm$ 0.111 & 0.261 $\pm$ 0.030 \\
+$k$NN subject (APS) & 0.893 $\pm$ 0.032 & 0.678 & 0.843 & 0.0627 & 0.42 & 2.776 $\pm$ 0.170 & 0.072 $\pm$ 0.029 \\
+Warm-up SACP, $m=80$ & 0.915 $\pm$ 0.043 & 0.631 & 0.840 & 0.0704 & 0.24 & 3.075 $\pm$ 0.414 & 0.073 $\pm$ 0.031 \\
+Warm-up SACP, $m=320$ & 0.898 $\pm$ 0.029 & 0.700 & 0.852 & 0.0481 & 0.38 & 2.847 $\pm$ 0.308 & 0.078 $\pm$ 0.031 \\
+Oracle per patient & 0.906 $\pm$ 0.011 & 0.900 & 0.901 & 0.0137 & 0.00 & 2.758 $\pm$ 0.181 & 0.094 $\pm$ 0.025 \\
+Per-patient ACI (APS) & 0.917 $\pm$ 0.007 & 0.879 & 0.898 & 0.0163 & 0.14 & 2.898 $\pm$ 0.152 & 0.072 $\pm$ 0.028 \\
+Per-patient ACI (deficit) & 0.897 $\pm$ 0.004 & 0.861 & 0.884 & 0.0133 & 0.54 & 1.657 $\pm$ 0.157 & 0.805 $\pm$ 0.045 \\
+\bottomrule
+\end{tabular}}
+\par\vspace{2pt}{\footnotesize ``Coverage'' is marginal over epochs (mean $\pm$ SD over the runs); ``Worst subj.'' is the minimum per-subject coverage over the runs; ``Below'' is the fraction of subjects below $1-\alpha$; ``SD'' is the standard deviation of per-subject coverage. Each subject contributes one value per run, the runs being five folds $\times$ one seed $\times$ two backbones; set size and singleton rate are averaged over the same runs.}
+\end{table}

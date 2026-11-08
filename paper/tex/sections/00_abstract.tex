@@ -1,0 +1,22 @@
+Automatic sleep staging from a single EEG channel serves as a first pass in
+clinical review, but the predicted stage alone does not say which epochs need
+a technologist's attention. Conformal prediction turns a stager into a
+set-valued predictor with a distribution-free guarantee that the true stage
+lies in the returned set, which is what that need requires.
+The guarantee is marginal over epochs, however, and patients differ: a model
+can hold $90\%$ pooled coverage while leaving nearly half of its patients
+below nominal, and the epochs where it fails are those review would otherwise
+catch. We study this gap for five-class staging on Sleep-EDF, using
+subject-wise folds that test every subject once, and report coverage per
+patient, per stage and over time. Three results follow. First,
+scoring a forward--backward posterior over each recording instead of the raw
+softmax is the largest efficiency gain available: the resulting deficit score
+cuts the mean set from $2.54$ to $1.53$ stages per epoch at comparable
+coverage and raises adjacent-epoch consistency from $0.68$ to $0.94$, though
+it under-covers N1 unless thresholds are conditioned on stage. Second, one
+adaptive conformal inference stream per patient, with a step size chosen by
+leave-one-subject-out simulation on calibration nights, raises worst-patient
+coverage from $0.774$ to $0.886$ without tuning on test labels. Third,
+sequence-level set construction, derived and proved here, does not improve on
+the per-epoch score. The sets convert into a direct estimate of review
+workload, from $76\%$ to $16\%$ of epochs; code and protocol are released.

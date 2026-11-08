@@ -1,0 +1,307 @@
+\subsection{Temporal smoothing}
+\label{sec:method-smoothing}
+
+Sleep stages are strongly autocorrelated: an epoch of N3 is far more likely
+to be followed by N3 than by W, and a per-epoch softmax discards that
+information. We fit a first-order hidden Markov model to the training labels,
+with transition matrix $A$ (Laplace-smoothed) and initial distribution $\pi$,
+and run the forward--backward recursions in log space \emph{within each
+recording} to obtain
+\begin{equation}
+\begin{aligned}
+\gamma_t(k)&=\frac{a_t(k)b_t(k)}{\sum_{k'\in\cY}a_t(k')b_t(k')},\\
+a_1(k)&=\pi_k\,p_1(k),\qquad
+a_t(k)=p_t(k)\sum_{j}a_{t-1}(j)A_{jk}\quad(t\ge2),
+\end{aligned}
+\label{eq:forward-backward}
+\end{equation}
+and $b_T(k)=1$,
+$b_t(k)=\sum_{j}A_{kj}\,p_{t+1}(j)\,b_{t+1}(j)$. (The forward and backward messages are
+written $a$ and $b$ so that $\alpha$ and $\beta$ keep their meanings elsewhere
+in the paper: the nominal level and its running ACI target, and the block
+transition weight.) The recursion is $O(LK^2)$ per recording.
+
+The smoothing uses no test labels and no test-time adaptation: it is a
+deterministic transformation of the model's own output. If calibration and
+test epochs are exchangeable under the score $s(\cdot,\cdot)$, they remain
+exchangeable under $s(\gamma(\cdot),\cdot)$, so split CP stays valid and the
+change is one of \emph{efficiency}, not of validity. That argument is the
+reason we prefer smoothing to a post-hoc repair of the sets, which would
+break the exchangeability argument it relies on.
+
+\subsection{Pooled calibration and its failure mode}
+\label{sec:method-pooled}
+
+Pooled calibration guarantees that $1-\alpha$ of \emph{all} epochs are
+covered, not that $1-\alpha$ of a given patient's epochs are. With $C$ the
+set of calibration subjects and $S_{j,t}$ the score of epoch $t$ of subject
+$j$,
+\begin{equation}
+\wh q_g=\operatorname{Quantile}_{\lceil(n_C+1)(1-\alpha)\rceil/n_C}
+\big(\{S_{j,t}\}_{j\in C}\big),
+\label{eq:global-q}
+\end{equation}
+which is \Cref{eq:split-cp} applied to the pooled scores. \Cref{sec:results-patient}
+quantifies how far per-patient coverage departs from nominal under this rule.
+
+\subsection{Subject-adaptive calibration with a warm-up}
+\label{sec:method-sacp}
+
+If a new subject supplies $m$ labelled epochs before deployment, those epochs
+define a local threshold $\wh q_i$ by the same rule, and we deploy
+\begin{equation}
+\wh q_i(\lambda)=(1-\lambda)\wh q_g+\lambda\wh q_i,
+\qquad \lambda\in[0,1].
+\label{eq:shrunk-q}
+\end{equation}
+The shrinkage matters because a warm-up is short: with $m\approx 1/\alpha$
+the local threshold is an extreme order statistic and its sampling variance
+is large, so $\lambda=1$ trades a bias reduction for a variance increase.
+
+\begin{proposition}[Shrinkage trade-off]
+\label{prop:shrinkage}
+Let subject $i$ have score CDF $F_i$ that is $\ell$-Lipschitz in a neighbourhood
+of its $(1-\alpha)$-quantile $q_i^\star$, let $\Delta=q_i^\star-q_g^\star$ be
+the subject's offset from the cohort quantile, and suppose $\wh q_i$ and
+$\wh q_g$ are approximately unbiased with variances $\sigma^2/m$ and
+$\sigma^2/n_C$. Then for a threshold $\wh q_i(\lambda)$ as in
+\Cref{eq:shrunk-q}, the squared coverage gap satisfies
+\begin{equation}
+\bE\Big[\big(F_i(\wh q_i(\lambda))-(1-\alpha)\big)^2\Big]
+\ \le\ \ell^2\Big[(1-\lambda)^2\Delta^2+\lambda^2\frac{\sigma^2}{m}
+ +(1-\lambda)^2\frac{\sigma^2}{n_C}\Big],
+\label{eq:shrink-bound}
+\end{equation}
+whose minimiser over $\lambda$ is
+\begin{equation}
+\lambda^\star=\frac{\Delta^2+\sigma^2/n_C}{\Delta^2+\sigma^2/n_C+\sigma^2/m}.
+\label{eq:lambda-star}
+\end{equation}
+\end{proposition}
+
+\begin{proof}[Proof sketch]
+Write $F_i(\wh q_i(\lambda))-(1-\alpha)=F_i(\wh q_i(\lambda))-F_i(q_i^\star)$,
+which is bounded in absolute value by $L|\wh q_i(\lambda)-q_i^\star|$ by the
+Lipschitz condition. Expanding $\wh q_i(\lambda)-q_i^\star
+=(1-\lambda)(\wh q_g-q_g^\star-\Delta)+\lambda(\wh q_i-q_i^\star)$ and taking
+expectations of squares under independence of the two estimates gives
+\Cref{eq:shrink-bound}; differentiating with respect to $\lambda$ and setting
+the derivative to zero gives \Cref{eq:lambda-star}.
+\end{proof}
+
+Proposition~\ref{prop:shrinkage} is not a plug-in estimator: $L$, $\sigma$ and
+$\Delta$ are unknown at deployment, and the Gaussian approximation to quantile
+estimates is asymptotic in $m$. We use it for what it does predict --- that
+$\lambda^\star\to0$ as $m\to0$, that $\lambda^\star\to1$ as $m\to\infty$, and
+that adaptation pays only when the subject's offset dominates the calibration
+noise, $\Delta^2\gg\sigma^2/n_C$ --- and we select $\lambda$ by leave-one-subject-out
+simulation on the calibration subjects, scoring each candidate by the
+one-sided mean shortfall
+\begin{equation}
+\mathcal{L}(\lambda)=\bE\big[\max\{0,(1-\alpha)-\widehat{\mathrm{cov}}\}\big],
+\label{eq:shortfall}
+\end{equation}
+so that over-coverage is not rewarded; it is paid for in set size and is not
+banked as a gain. Test subjects never enter this selection, which differs
+from the usual practice of reporting the best $\lambda$ on test data.
+
+\paragraph{Label-free variant}
+When no warm-up labels exist, each subject is described by unlabelled
+statistics $z_i=(\bar p_i,\ \overline{\max_k p_{i,k}},\ \bar H(p_i))\in\bR^{7}$
+--- the mean predicted class distribution, the mean confidence and the mean
+predictive entropy, with the distribution contributing five coordinates ---
+and the $k$ nearest calibration subjects in this space supply a local
+threshold, shrunk toward the global one with the same $\lambda$. This is an
+approximation and we report it as such: it cannot be valid in general, only
+when the descriptor correlates with the subject's score distribution.
+
+\subsection{Per-patient adaptive conformal inference}
+\label{sec:method-aci}
+
+The warm-up regime presumes labelled epochs from the new patient before
+deployment. In a review workflow the opposite is true: labels arrive
+\emph{after} each prediction, because a technologist reviews the automatic
+hypnogram. This is the feedback pattern ACI was designed for.
+
+Running a single ACI stream over all epochs of all patients gives a pooled
+guarantee once more: a hard patient can be under-covered while an easy one is
+over-covered and the stream still converges. We therefore run one
+\emph{independent} stream per patient $p$,
+\begin{equation}
+\alpha_{p,t+1}=\alpha_{p,t}+\gamma_{p,t}\big(\alpha-\ones\{Y_{p,t}\notin\cC_{p,t}\}\big),
+\qquad
+\cC_{p,t}=\{y:\ s_{p,t}(y)\le\wh q(\alpha_{p,t})\},
+\label{eq:aci-patient}
+\end{equation}
+each starting at $\alpha_{p,1}=\alpha$ and each reading its threshold from the
+same pooled calibration scores, so that no patient-specific calibration data
+is required. The step schedule is
+\begin{equation}
+\gamma_{p,t}=\gamma_0/\sqrt{t+2},
+\label{eq:step}
+\end{equation}
+which decays fast enough to stop a single misclassified stretch from
+permanently loosening the threshold, and slowly enough to keep adapting over a
+night. The schedule has $\sum_t\gamma_t=\infty$ but also
+$\sum_t\gamma_t^2=\infty$, so it violates the square-summability condition
+under which \citet{angelopoulos2024} establish their guarantee; we make
+\emph{no} long-run guarantee for it, and report
+the realised per-patient coverage and state in \Cref{sec:results-patient}
+whether it is above or below nominal. What the procedure buys, and what we
+measure, is the reallocation of coverage from easy to hard patients.
+
+The point of running one stream per patient is that it turns ACI's pooled
+long-run statement into a per-patient one. We state that implication
+explicitly, because it is the only part of the construction that carries a
+guarantee.
+
+\begin{corollary}[Per-patient long-run coverage]
+\label{cor:per-patient}
+Suppose the threshold map $\wh q(\alpha)$ is the fixed quantile of the pooled
+calibration scores, so that \Cref{eq:aci-patient} defines every set, and let
+the step schedule satisfy $\gamma_t\to0$, $\gamma_t\le1$,
+$\sum_t\gamma_t=\infty$ and $\sum_t\gamma_t^2<\infty$. Then for every patient
+$p$ the realised miscoverage rate on that patient's stream converges to
+$\alpha$,
+\begin{equation}
+\frac{1}{T}\sum_{t=1}^{T}\ones\{Y_{p,t}\notin\cC_{p,t}\}
+\;\longrightarrow\;\alpha
+\qquad (T\to\infty),
+\label{eq:aci-per-patient}
+\end{equation}
+for an arbitrary sequence of inputs and labels, with no exchangeability
+assumption within the patient.
+\end{corollary}
+
+\begin{proof}
+The update \Cref{eq:aci-patient} of stream $p$ depends only on that stream's
+own outcomes and on a threshold map fixed by the calibration set, so the
+stream is an instance of the single-stream recursion of
+\citet{angelopoulos2024}. Their long-run bound, applied stream by stream,
+gives \Cref{eq:aci-per-patient}. The step \Cref{eq:step} used in the
+experiments does not satisfy the summability hypothesis and therefore carries
+no claim; \Cref{sec:results-aci} repeats the experiment with a schedule that
+does.
+\end{proof}
+
+The scale $\gamma_0$ is a hyperparameter. We choose it by leave-one-subject-out
+simulation within the calibration cohort: each calibration subject in turn
+forms a stream, the remaining calibration subjects supply the score pool, and
+the $\gamma_0$ that minimises the one-sided mean shortfall
+\Cref{eq:shortfall} across those held-out streams --- ties broken by smaller
+mean set size --- is applied unchanged to every test patient. The test cohort
+never influences the choice.
+
+\subsection{Sequence-level constructors}
+\label{sec:method-seq}
+
+A per-epoch set is free to be inconsistent with its neighbours: epoch $t$ may
+admit $\{W,N1\}$ while $t+1$ admits $\{N3\}$, a transition the training labels
+essentially forbid. We derived two constructors that repair this by scoring
+labels in the context of the best \emph{sequence} through them, and we report
+both with their properties because one of them is a useful ablation and the
+other is a negative result.
+
+\paragraph{SeqCP-Margin}
+For a block of $L$ consecutive epochs inside one recording, transition cost
+$\tau(a,b)=1-A_{ab}$, and weight $\beta\ge0$, define
+\begin{equation}
+\begin{aligned}
+M_t(y)&=\min_{y_{1:L}:\,y_t=y}
+\Big[\frac1L\sum_{u=1}^{L}\big(1-\gamma_u(y_u)\big)
++\frac{\beta}{L-1}\sum_{u=2}^{L}\tau(y_{u-1},y_u)\Big],\\
+M^\star&=\min_{t,y}M_t(y).
+\end{aligned}
+\label{eq:margin}
+\end{equation}
+Forward and backward recursions compute every $M_t(y)$ in $O(LK^2)$; a
+brute-force check over all $K^L$ paths for small blocks is part of the test
+suite. We take $m_t=M_t(Y_t)-M^\star$ as the nonconformity of the true label,
+calibrate $\wh\delta$ as its split-conformal quantile on calibration blocks,
+and predict $\cC_t=\{y:M_t(y)-M^\star\le\wh\delta\}$. Since
+$Y_t\in\cC_t\iff m_t\le\wh\delta$, this is split CP on the scalar $m_t$ and
+inherits its marginal guarantee.
+
+\begin{proposition}[Reduction at $\beta=0$]
+\label{prop:reduction}
+With $\beta=0$ the dynamic program factorises: for every $t$ and $y$,
+\begin{equation}
+M_t(y)-M^\star=\frac{1}{L}\Big(s_t(y)-\min_{k\in\cY}s_t(k)\Big),
+\qquad s_t(k)=1-\gamma_t(k),
+\label{eq:reduction}
+\end{equation}
+independently of the block. Hence SeqCP-Margin at $\beta=0$ is exactly
+per-epoch split CP on the deficit score \Cref{eq:deficit}, and any difference
+between the two at $\beta>0$ is attributable to the transition term alone.
+\end{proposition}
+
+\begin{proof}
+At $\beta=0$ the objective separates over positions. The minimum total cost of
+a path constrained to $y_t=y$ is $s_t(y)+\sum_{u\ne t}\min_k s_u(k)$, so
+$M_t(y)-M^\star=\frac1L(s_t(y)-\min_k s_t(k))$ after subtracting the
+unconstrained minimum $\frac1L\sum_u\min_k s_u(k)$.
+\end{proof}
+
+\begin{proposition}[Monotonicity of the centring]
+\label{prop:monotone}
+Let $M_t^{\mathrm{pos}}(y)=M_t(y)-\min_k M_t(k)$. Then
+$M_t^{\mathrm{pos}}(y)\le M_t(y)-M^\star$ for every $t,y$, so the
+position-centred sets are pointwise no larger than the globally centred ones.
+\end{proposition}
+
+\begin{proof}
+$\min_k M_t(k)\ge\min_{u,k}M_u(k)=M^\star$.
+\end{proof}
+
+In practice the two coincide, because the block-optimal path on a sleep block
+is usually constant and therefore visits every epoch, in which case
+$\min_k M_t(k)=M^\star$ for all $t$. We keep both and report that they agree
+rather than asserting a difference.
+
+\paragraph{SeqCP-Block}
+Projecting a \emph{sequence-level} conformal set onto each position gives a
+simultaneous guarantee with no union bound. Calibrate the block score
+\begin{equation}
+S(y_{1:L})=\frac1L\sum_{t=1}^{L}\aps_t(y_t)
++\frac{\beta}{L-1}\sum_{t=2}^{L}\tau(y_{t-1},y_t)
+\label{eq:block-score}
+\end{equation}
+on complete calibration blocks, obtaining $\wh q$, and predict
+$\cC_t=\{y:M_t(y)\le\wh q\}$ with $M_t$ computed from the APS score matrix.
+
+\begin{theorem}[Simultaneous coverage of the projection]
+\label{thm:projection}
+Let $\wh q$ be the split-conformal quantile of \Cref{eq:block-score} over
+$n_B$ exchangeable calibration blocks. Then with probability at least
+$1-\alpha$, the true block is in the block-level set, and in that
+event $Y_t\in\cC_t$ for every $t=1,\dots,L$.
+\end{theorem}
+
+\begin{proof}
+By \Cref{eq:split-cp}, $\bP(S(Y_{1:L})\le\wh q)\ge 1-\alpha$. If the true
+block is in the block-level set then the path $y_{1:L}=Y_{1:L}$ is feasible,
+so $M_t(Y_t)\le S(Y_{1:L})\le\wh q$ by the definition of $M_t$ as a minimum
+over paths. Hence $Y_t\in\cC_t$ for all $t$ simultaneously.
+\end{proof}
+
+\Cref{thm:projection} is the guarantee we can prove, and
+\Cref{sec:results-temporal} reports what it costs. The projection of a union
+of sequences contains every label that \emph{any} admissible sequence assigns
+to $t$, so it is inherently loose, and because the transition terms are
+non-negative penalties the block set prefers low-transition sequences. At
+$\beta\ge0.5$ the penalised block set admits a constant sequence for every
+label, the projection becomes the whole label set, and the guarantee is
+satisfied trivially. Even at $\beta=0$ the block mean lets one well-scored
+neighbour absorb a badly scored epoch. We report this as a property of the
+construction rather than of our implementation.
+
+\subsection{What we do not claim}
+\label{sec:method-claims}
+
+The nonconformity scores are calibrated, not the model: a set can cover the
+truth and still be clinically useless if it is always $\{N1,N2\}$, which is
+why set size, singleton rate and review workload are reported alongside
+coverage. We make no subject-conditional finite-sample guarantee under
+arbitrary shift, no claim that SeqCP-Block is efficient, and no clinical
+safety claim. The assumptions each result needs are stated where the result
+is used.

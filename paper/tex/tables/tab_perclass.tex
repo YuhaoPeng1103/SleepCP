@@ -1,0 +1,22 @@
+\begin{table}[t]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\caption{Coverage per stage at $\alpha=0.1$, averaged over the 30 runs. Nominal coverage is 0.90 for every stage.}
+\label{tab:perclass}
+\resizebox{\ifdim\width>\linewidth \linewidth\else\width\fi}{!}{%
+\begin{tabular}{lrrrrr}
+\toprule
+Stage & Pooled APS & Smoothed APS & Smoothed deficit & Deficit, per stage & Mondrian APS \\
+\midrule
+W & 0.812 & 0.747 & 0.925 & 0.904 & 0.887 \\
+N1 & 0.961 & 0.953 & 0.432 & 0.902 & 0.904 \\
+N2 & 0.899 & 0.924 & 0.933 & 0.909 & 0.897 \\
+N3 & 0.865 & 0.923 & 0.912 & 0.899 & 0.899 \\
+REM & 0.985 & 0.980 & 0.912 & 0.905 & 0.906 \\
+\midrule
+Mean $|\cC_t|$ & 2.537 & 2.223 & 1.531 & 1.741 & 2.294 \\
+\bottomrule
+\end{tabular}}
+\par\vspace{2pt}{\footnotesize Each coverage cell is the fraction of epochs of that stage whose set contains the true stage, averaged over the runs; the averages weight the stages unequally because the test blocks differ, so the run-to-run spread is in the released JSON. The bottom row is the mean set size over all epochs, the counterpart of those coverage numbers. The last two columns threshold per stage, on the deficit score and on the raw APS score respectively, so their stage coverage is near nominal by construction.}
+\end{table}

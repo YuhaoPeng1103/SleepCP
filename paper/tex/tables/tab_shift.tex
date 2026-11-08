@@ -1,0 +1,28 @@
+\begin{table}[t]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\caption{Coverage under hardware shift. The in-cohort rows are the cassette cohort over all runs of the main matrix; the cross rows train on one cohort, calibrate on four held-out subjects from it, and test on the other cohort, at seed 0 for both backbones, with the statistics merged over the five folds and two backbones. The $\pm$ is the standard deviation over the runs contributing to the row (thirty in-cohort, ten cross-cohort), so it measures run-to-run variation, not uncertainty over patients. Per-patient ACI uses the leave-one-subject-out step size selected within the source cohort.}
+\label{tab:shift}
+\resizebox{\ifdim\width>\linewidth \linewidth\else\width\fi}{!}{%
+\begin{tabular}{llrrrr}
+\toprule
+Scenario & Method & Coverage & Worst patient & $p_{10}$ & Set size \\
+\midrule
+In-cohort & APS, pooled & 0.898 $\pm$ 0.038 & 0.774 & 0.822 & 2.537 $\pm$ 0.207 \\
+ & APS, per-patient ACI & 0.904 $\pm$ 0.010 & 0.886 & 0.892 & 2.491 $\pm$ 0.203 \\
+ & Deficit, pooled & 0.889 $\pm$ 0.044 & 0.792 & 0.817 & 1.531 $\pm$ 0.325 \\
+ & Deficit, per-patient ACI & 0.898 $\pm$ 0.007 & 0.872 & 0.891 & 1.575 $\pm$ 0.271 \\
+\addlinespace[2pt]
+Cassette $\to$ telemetry & APS, pooled & 0.933 $\pm$ 0.028 & 0.799 & 0.869 & 2.684 $\pm$ 0.066 \\
+ & APS, per-patient ACI & 0.913 $\pm$ 0.010 & 0.883 & 0.894 & 2.387 $\pm$ 0.018 \\
+ & Deficit, pooled & 0.835 $\pm$ 0.026 & 0.714 & 0.747 & 1.397 $\pm$ 0.083 \\
+ & Deficit, per-patient ACI & 0.896 $\pm$ 0.001 & 0.878 & 0.888 & 1.843 $\pm$ 0.099 \\
+\addlinespace[2pt]
+Telemetry $\to$ cassette & APS, pooled & 0.886 $\pm$ 0.003 & 0.789 & 0.838 & 2.198 $\pm$ 0.079 \\
+ & APS, per-patient ACI & 0.903 $\pm$ 0.001 & 0.872 & 0.883 & 2.292 $\pm$ 0.152 \\
+ & Deficit, pooled & 0.878 $\pm$ 0.001 & 0.678 & 0.820 & 1.772 $\pm$ 0.280 \\
+ & Deficit, per-patient ACI & 0.898 $\pm$ 0.005 & 0.878 & 0.880 & 1.874 $\pm$ 0.264 \\
+\bottomrule
+\end{tabular}}
+\end{table}

@@ -1,0 +1,166 @@
+\section{Introduction}
+\label{sec:intro}
+
+Sleep staging is the foundation of every clinical sleep study. A technologist
+scores each \SI{30}{\second} epoch of polysomnography into one of five stages
+--- wake (W), N1, N2, N3 and REM --- and the resulting hypnogram drives the
+diagnosis of insomnia, narcolepsy, sleep apnoea and parasomnias, as well as
+the assessment of treatment response. Manual scoring is slow and only
+moderately reliable, with inter-scorer agreement on N1 and on transition
+epochs notoriously poor \citep{rosenberg2013}. Automatic staging has therefore
+become a standard first pass, and recent single-channel models reach epoch
+accuracy in the mid-80s on public cohorts
+\citep{lawhern2018,phan2019seqsleepnet,perslev2021,phan2022sleepformer},
+with rhythm, multi-scale and contrastive designs continuing to raise it
+\citep{zhou2026bspc,fan2025bspc}.
+
+The reviewing technologist is the part of that workflow a point prediction
+does not serve. A stager that is right nine epochs in ten still returns a
+single label for every epoch, including the ones it should not be trusted on,
+so the reviewer either re-scores the whole night or trusts a number that was
+never a statement about reliability. What the review step needs is a
+per-epoch account of which stages remain plausible after the signal has been
+read, so that attention can be spent where the model is genuinely undecided.
+This is a signal-analysis question before it is a machine-learning one: the
+decision has to be made from a short single-channel epoch, it has to be
+consistent with the temporal structure of the hypnogram, and it has to be
+usable on a patient the model has never seen.
+
+Cohort averages hide two properties that matter at the point of review.
+
+The first is \emph{subject shift}. A model is trained on a cohort and then
+applied to a patient it has never seen. Sleep architecture varies enormously
+between individuals --- total sleep time, N3 fraction, REM latency and the
+amplitude and spectral content of the EEG all change with age, medication and
+comorbidity --- and a model that is 85\% accurate on the cohort can be
+markedly worse on a particular patient. A cohort mean does not tell a
+clinician which patients those are. Per-epoch confidence scores (softmax
+confidence, Monte-Carlo dropout, deep ensembles, evidential heads) produce a
+number per epoch but no statement about how often the true stage is actually
+inside whatever set of stages the model is willing to commit to.
+
+The second is \emph{temporal dependence}. Sleep stages persist for minutes.
+Scored epoch by epoch, a model's errors cluster, and any per-epoch
+uncertainty estimate inherits that clustering: it is confident through a
+stable stretch of N2 and uncertain precisely at the transitions that
+clinicians care about. Per-epoch prediction sets can also flicker between
+adjacent epochs even when the underlying signal has not changed, which is
+clinically incoherent, because the hypnogram is a sequence rather than a bag
+of epochs.
+
+Conformal prediction (CP) \citep{vovk2005,angelopoulos2023gentle} is the
+natural framework for the first problem. Given a calibration set, split CP
+turns any model into a set-valued predictor with a finite-sample,
+distribution-free guarantee that the true label lies in the set with
+probability at least $1-\alpha$. In sleep staging this is exactly the
+statement a clinician needs: ``with 90\% confidence, this epoch is one of
+these two stages.'' CP has also been studied as a target for network
+design and compression rather than only as a wrapper around a fixed model
+\citep{zhao2025pruning}; we deliberately keep the backbone frozen, so that
+every statement below is about the stager as it would be deployed and not
+about a network retrained to make the sets smaller. Recent work has begun to
+bring CP to EEG and to
+sleep, and the closest results are sobering: split CP on EEG event
+classification loses a large fraction of its coverage under patient shift,
+and per-patient recalibration recovers most of it \citep{chatterjee2026}. Selective
+prediction for sleep staging \citep{cover2026} takes a related but different
+route --- it decides which epochs to accept, subject to an empirical risk
+target, without producing a coverage-guaranteed set.
+
+What is missing is (i) an evaluation of CP for sleep staging that reports the
+distribution of coverage across patients rather than its mean, and (ii) a
+procedure that delivers the per-patient statement a clinician needs while
+respecting the information a deployment actually has: a frozen model, a
+handful of scored nights from the cohort it was trained on, and labels that
+arrive after each prediction because a technologist reviews the hypnogram
+anyway.
+
+This paper provides both, and is deliberately explicit about what the data
+can and cannot support. We build on Sleep-EDF
+\citep{kemp2000,goldberger2000} with subject-wise folds that partition the
+cohort, so that every one of the 20 subjects is tested exactly once
+and no test epoch shares a subject with any calibration or training epoch. We
+evaluate two backbones, several nonconformity scores, and three families of
+adaptation, and we separate the claims that carry a guarantee from those that
+are merely measured.
+
+\paragraph{The gap, and four findings}
+\begin{enumerate}
+\item \textbf{The marginal guarantee is not the clinical one.} At
+      $\alpha=0.1$, pooled split CP reaches $0.898$ coverage, close to
+      nominal, while $45\%$ of test subjects fall below the nominal level
+      and the worst subject is covered at $0.774$. An epoch-level random
+      split --- the protocol common in the machine-learning literature ---
+      hides this entirely: calibration and test epochs then come from the
+      same subjects, so a coverage figure computed per subject reflects the
+      shared epochs rather than the subject and is not a deployment
+      statistic.
+\item \textbf{Score smoothing is what buys efficiency.} Running
+      forward--backward recursions over the HMM implied by the training
+      labels and scoring the \emph{posterior deficit}
+      $\max_k \gamma_t(k)-\gamma_t(Y_t)$ cuts the set size by about forty per
+      cent relative to APS on the raw softmax at comparable coverage
+      ($1.53$ versus $2.54$ labels per epoch, at $0.889$ versus $0.898$), and raises temporal
+      consistency from $0.68$ to $0.94$. Because a singleton set is an epoch
+      the reviewer can accept, set size is also the review workload: the
+      fraction of epochs whose set contains more than one stage falls from
+      $0.76$ to $0.16$. The gain is not uniform across stages, and
+      \Cref{sec:results-score} reports both the trade-off and the per-stage
+      threshold that removes it at a modest cost in set size. The smoothing
+      costs $O(LK^2)$ per recording and uses no labels at test time.
+\item \textbf{One adaptation stream per patient shrinks the spread.} Running
+      adaptive conformal inference (ACI) with an independent stream per
+      patient, and choosing the step size by leave-one-subject-out simulation
+      on the calibration subjects, raises worst-patient coverage from
+      $0.774$ to $0.886$ without tuning on the test patients. The
+      mechanism is visible in the per-patient coverage vectors: easy patients
+      move down toward nominal, hard patients move up.
+\item \textbf{Sequence-level set construction does not help here.} We derive
+      two dynamic-programming constructors, one centred on the minimum-cost
+      path and one projecting an exact block-level conformal set. We prove
+      that the first reduces exactly to per-epoch CP on the deficit score when
+      the transition weight is zero, and that its position-centred variant
+      cannot return larger sets; at positive weight the measured sets do grow,
+      and we report that as a measured effect rather than a proved one. We
+      prove that the second is simultaneous by construction, and
+      show empirically that it is vacuous on sleep blocks. We report these as
+      negative results with proofs, because a reader who knows the
+      literature will otherwise assume the constructions were not tried.
+\end{enumerate}
+
+\paragraph{Relation to prior work}
+The procedure is assembled from parts that exist separately, and we say so
+plainly rather than claim each part. \citet{gibbs2021} introduced ACI and
+proved long-run coverage for a single stream under arbitrary shift; running
+their recursion once per patient is what turns that pooled statement into a
+per-patient one, and \Cref{cor:per-patient} records the inheritance under
+their step-size conditions. \citet{angelopoulos2024} analyse decaying
+schedules; the default schedule here fails their sufficient conditions, which
+\Cref{sec:results-aci} states and quantifies rather than papers over.
+\citet{barber2023} and \citet{tibshirani2019} extend CP beyond exchangeability,
+but the resulting bounds are expressed in terms of the size of the shift or of
+a known weighting function, neither of which is available at deployment, and
+neither gives a per-patient statement. \citet{chatterjee2026} is the closest
+empirical
+predecessor: they measure the collapse of EEG coverage under patient shift and
+repair it with per-patient recalibration, which needs labelled epochs from the
+test patient before deployment. The warm-up variant studied in
+\Cref{sec:method-sacp} is exactly their requirement, so we evaluate it rather
+than assume it; the ACI variant replaces the labelled warm-up with labels that
+arrive one at a time, which is what a review workflow already provides. On the
+sleep side the models we use are standard and the contribution is not
+architectural. What we contribute is the signal-processing layer that turns a
+per-epoch posterior into a clinically readable object: a forward--backward
+posterior computed from the epoch probabilities and the sleep-stage
+transition structure, a nonconformity score that is monotone in the posterior
+deficit and therefore inherits both, a calibration rule that respects the
+patient as the unit of deployment, and an evaluation that reports the
+quantities a review workflow actually consumes --- coverage per patient, set
+size as review workload, and temporal consistency of the sets along the
+hypnogram.
+
+The remainder of the paper reviews related work (\Cref{sec:related}), fixes
+notation, the CP background and the method (\Cref{sec:method}), describes the
+experimental setup (\Cref{sec:setup}), reports results (\Cref{sec:results})
+and discusses implications, limitations and conclusions
+(\Cref{sec:discussion}).

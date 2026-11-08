@@ -1,0 +1,152 @@
+% Biomedical Signal Processing and Control submission (Elsevier elsarticle).
+% Build: latexmk -pdf main.tex
+\documentclass[preprint,12pt]{elsarticle}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{siunitx}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{url}
+\usepackage[hidelinks]{hyperref}
+\usepackage{cleveref}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta}
+\usepackage{xcolor}
+\usepackage{lineno}
+\usepackage{setspace}
+
+\graphicspath{{../figures/}{figures/}}
+% Numbered citations with author names in the optional argument, so that the
+% ``\citet{...} showed'' sentences read as names rather than as ``Author?''.
+\bibliographystyle{elsarticle-num-names}
+
+\newtheorem{proposition}{Proposition}
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}{Lemma}
+\newtheorem{corollary}{Corollary}
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}
+\newtheorem{assumption}{Assumption}
+\theoremstyle{remark}
+\newtheorem{remark}{Remark}
+
+\newcommand{\cY}{\mathcal{Y}}
+\newcommand{\cD}{\mathcal{D}}
+\newcommand{\cC}{\mathcal{C}}
+\newcommand{\bP}{\mathbb{P}}
+\newcommand{\bE}{\mathbb{E}}
+\newcommand{\bR}{\mathbb{R}}
+\newcommand{\ones}{\mathbf{1}}
+\newcommand{\aps}{\mathrm{APS}}
+\newcommand{\wh}[1]{\widehat{#1}}
+
+% Allow the occasional stretch rather than pushing a hyphenated word into the
+% margin; the alternative is a scattering of 1-15 pt overfull boxes.
+\setlength{\emergencystretch}{2em}
+
+% Let pages carry a little more float area so that the large tables land near
+% the section that discusses them instead of queueing up after the references.
+\renewcommand{\topfraction}{0.9}
+\renewcommand{\bottomfraction}{0.8}
+\renewcommand{\textfraction}{0.07}
+\renewcommand{\floatpagefraction}{0.75}
+
+\journal{Biomedical Signal Processing and Control}
+
+\begin{document}
+
+\begin{frontmatter}
+
+\title{Patient-adaptive conformal prediction sets for reliable single-channel
+EEG sleep staging}
+
+\ifdefined\ANONYMOUS
+\else
+\author[aff1]{Zhiwen Song}
+\author[aff1]{Yuhao Peng\corref{cor1}}
+\ead{pngyuo@cug.edu.cn}
+\cortext[cor1]{Corresponding author.}
+\affiliation[aff1]{organization={School of Mathematics and Physics,
+            China University of Geosciences (Wuhan)},
+            addressline={388 Lumo Road, Hongshan District},
+            city={Wuhan},
+            postcode={430074},
+            country={China}}
+\fi
+
+\begin{abstract}
+\input{sections/00_abstract}
+\end{abstract}
+
+\begin{keyword}
+Sleep staging \sep Single-channel EEG \sep Conformal prediction \sep
+Uncertainty quantification \sep Subject variability \sep Biomedical signal
+analysis
+\end{keyword}
+
+\end{frontmatter}
+
+\ifdefined\REVIEWCOPY
+\doublespacing
+\linenumbers
+\fi
+
+\input{sections/01_intro}
+\input{sections/02_related}
+\input{sections/03_background}
+\input{sections/04_method}
+\input{sections/05_setup}
+\input{sections/06_results}
+\input{sections/07_discussion}
+
+\section*{Declaration of competing interest}
+The authors declare that they have no known competing financial interests or
+personal relationships that could have appeared to influence the work
+reported in this paper.
+
+\section*{Funding}
+This research received no specific grant from any funding agency in the public,
+commercial, or not-for-profit sectors.
+
+\section*{Ethics statement}
+This study used publicly available, de-identified Sleep-EDF recordings from
+PhysioNet. No new human-subject data were collected, and additional ethics
+approval was therefore not required.
+
+\section*{Data availability}
+Sleep-EDF and the Sleep-EDF telemetry cohort are publicly available from
+PhysioNet.
+\ifdefined\ANONYMOUS
+Code reproducing every table and figure, together with the exact command
+lines and released result summaries, is supplied with the submission for
+review. Identifying repository information is withheld in this peer-review
+copy and will be provided in the final publication record.
+\else
+Code reproducing every table and figure, together with the exact command
+lines and released result summaries, is available at
+\url{https://github.com/YuhaoPeng1103/SleepCP}.
+\fi
+
+\section*{CRediT authorship contribution statement}
+\ifdefined\ANONYMOUS
+Author contribution details are withheld from this peer-review copy.
+\else
+\textbf{Zhiwen Song:} Conceptualization, Methodology, Software, Validation,
+Formal analysis, Investigation, Writing -- original draft. \textbf{Yuhao
+Peng:} Supervision, Writing -- review \& editing.
+\fi
+
+\section*{Declaration of generative AI and AI-assisted technologies}
+During the preparation of this work, the authors used OpenAI Codex to assist
+with language editing, manuscript organisation, and consistency checks. The
+authors reviewed and edited the content as needed and take full responsibility
+for the content of the publication.
+
+\bibliography{refs}
+
+\end{document}

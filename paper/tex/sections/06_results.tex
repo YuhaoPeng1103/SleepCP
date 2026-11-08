@@ -1,0 +1,445 @@
+\section{Results}
+\label{sec:results}
+
+All numbers are at $\alpha=0.1$ unless stated. Coverage statistics over
+subjects are computed by merging per-subject coverage across the five folds
+and averaging it over the seeds and backbones that re-run the same
+partition, so each subject appears exactly once; the spread reported is the
+run-to-run spread of the training, not a spread over patient cohorts.
+
+\paragraph{Backbone performance}
+\Cref{tab:training} reports classification quality. Both backbones sit in the
+range published for Sleep-EDF on Fpz--Cz, with \texttt{sleepcnn} slightly
+ahead of \texttt{eegnet} on accuracy and kappa. N1 remains the weak class for
+both, and the per-stage breakdown in \Cref{tab:perclass} shows that the
+marginal number hides class-level deviations in both directions. ECE is modest ($0.030$ for \texttt{eegnet}), and
+\Cref{sec:results-patient} shows that this is precisely the number that fails
+to detect the problem: a well-calibrated marginal predictor can still leave a
+patient twelve points short of nominal coverage.
+
+\input{tables/tab_training}
+
+\subsection{The marginal guarantee is not the patient guarantee}
+\label{sec:results-patient}
+
+\Cref{tab:sacp} contrasts pooled calibration with the patient-level
+statistics. Pooled APS reaches $0.898$ marginal coverage --- nominal to within
+two thousandths --- while the worst patient is covered at $0.774$, $45\%$ of
+the patients fall below $1-\alpha$, and per-patient coverage has a standard
+deviation of $0.051$. The quantity that matters clinically is the
+\emph{patient coverage gap},
+\begin{equation}
+\max_{j}\big[(1-\alpha)-\mathrm{cov}_j\big]^{+},
+\end{equation}
+and it is invisible in the marginal number. The first row makes the point sharper: a random-epoch split --- the
+protocol under which subjects are mixed between calibration and test ---
+reports $0.901$ coverage. A per-patient figure could be computed there ---
+epochs carry their subject identifier --- but it would measure the epochs
+shared between calibration and test rather than the subject, so the row is
+reported with marginal coverage and set size only. The split that makes the
+statistic estimable is the same split that makes the failure visible.
+
+The class-conditional (Mondrian) row is the informative baseline, and it
+deserves care because it is not a straw man. Conditioning the threshold on the
+stage makes the mean set \emph{smaller} --- from $2.54$ to $2.29$ labels per
+epoch --- because a per-class APS threshold no longer has to pay for the heavy
+tail of the pooled score, and it nudges the patient statistics in the right
+direction: worst-patient coverage rises from $0.774$ to $0.787$ and the
+per-patient standard deviation falls from $0.051$ to $0.048$. The nudges are
+small, and a paired per-patient test on the distance from nominal finds no
+difference from pooled calibration (smaller for $12$ of $20$ patients,
+$p=0.43$). The mechanism is that patient difficulty is strongly associated with
+stage mix --- every patient is hard on N1 --- so a stage-conditional rule
+equalises patients only to the extent that they differ by stage alone. What it
+cannot do is adapt to a patient who is hard for reasons orthogonal to their
+stage mix, and on this cohort it still leaves an $0.11$ gap at the worst
+patient and $45\%$ of patients below nominal. The same limitation applies to
+the per-stage threshold on the deficit score of \Cref{sec:results-score}:
+conditioning reaches a patient only through their stage mix, so it reduces
+the fraction of patients below nominal from $0.60$ to $0.35$ but leaves the
+worst patient where it was ($0.787$ against $0.792$). That residual is the
+target of \Cref{sec:results-aci}.
+
+\input{tables/tab_sacp}
+
+\subsection{Posterior smoothing is the largest efficiency lever}
+\label{sec:results-score}
+
+\Cref{tab:temporal} compares nonconformity scores on the same epochs and the
+same calibration data. Replacing the raw-softmax APS score with the smoothed
+posterior deficit reduces the mean set size from $2.54$ to $1.53$ labels per
+epoch at essentially the same coverage ($0.898$ against $0.889$, a difference
+within the run spread), and raises the Jaccard consistency statistic from
+$0.68$ to $0.94$. Both sit close to nominal --- the deficit score $1.1$ points
+below and APS $0.2$ points below --- and the residual gap of
+the deficit score is the finite-sample fluctuation of the split-conformal
+threshold --- the guarantee is in expectation over calibration draws, not a
+statement about one calibration set --- and it is smaller than the
+run-to-run spread. The mechanism is visible in the singleton rate, which rises
+from $0.17$ to $0.84$: most epochs are predicted as a single stage, which is
+the behaviour a reviewing technologist wants. The review workload --- the
+fraction of epochs whose set contains more than one stage and would need
+adjudication --- falls from $0.76$ to $0.16$ over the same runs. A second
+asymmetry is not in the table: pooled APS returns an \emph{empty} set on
+$6.8\%$ of epochs, where no stage clears the threshold, and those epochs also
+go to the reviewer even though the workload definition does not count them.
+The deficit score is never empty ($0.000$), because its score has an atom at
+zero and the posterior mode always admits itself. Adding empty sets to the
+workload leaves the comparison unchanged ($0.83$ against $0.16$).
+
+The efficiency is not free at the class level. \Cref{tab:perclass} breaks
+coverage down by stage. Pooled APS over-covers the rare and difficult stages
+--- N1 at $0.96$ and REM at $0.985$ --- because the heavy tail of its score
+forces a loose threshold, and it under-covers W ($0.81$) and N3 ($0.87$).
+Smoothing the APS score redistributes the imbalance rather than removing it:
+W falls to $0.75$ while N1 stays at $0.95$. The deficit score removes the
+looseness where the model is confident and pays for
+it on N1, whose coverage falls to $0.43$: when the model is confidently wrong
+on an N1 epoch, the posterior deficit of the true N1 is large, so the set
+omits the stage exactly where the error is.
+
+The repair is one line of calibration rather than a different score:
+thresholding the same deficit score per stage (\Cref{eq:mondrian}). Every
+stage then lands between $0.899$ and $0.909$ at $1.74$ labels per epoch --- a
+quarter fewer than conditioning APS on the stage ($2.29$) and almost a third
+fewer than pooled APS ($2.54$). It also lowers the fraction of patients below
+nominal from $0.60$ to $0.35$, although the worst patient is unchanged
+($0.787$ against $0.792$ for the pooled deficit threshold). What conditioning costs is review
+workload, which rises from $0.16$ to $0.49$ because the sets add a second
+stage whenever the model's evidence is weak, and adjacent-set consistency,
+which falls from $0.94$ to $0.88$. We therefore report the unconditioned
+deficit score as the efficiency frontier and the per-stage version as the
+deployment default when an omitted stage is costly; the per-patient analysis
+below is marginal over stages and is unaffected.
+
+\input{tables/tab_perclass}
+
+The recursion costs nothing at
+inference: $O(LK^2)$ per recording, measured at
+\SIrange{30}{40}{\micro\second} per epoch --- a few tens of milliseconds for
+a whole recording --- on one CPU core (\texttt{scripts/benchmark\_smoothing.py}
+reproduces the measurement on the machine at hand).
+
+APS on the smoothed posterior sits between the two: smoothing alone helps
+($2.54\to2.22$ labels at $0.903$ coverage, consistency $0.75$),
+but the heavy tail of the APS score limits how much, and the deficit score
+removes it. RAPS narrows the tail at the cost of a rank hyperparameter that
+must be tuned on held-out calibration data; it reaches $1.61$ labels at
+$0.885$ coverage with $47\%$ singletons, better than APS and short of the
+deficit score, and we do not pursue it further because the deficit score needs
+no extra hyperparameter.
+
+The ordering does not depend on the nominal level. Recomputing both scores on
+the same fitted models at $\alpha\in\{0.05,0.2\}$, the deficit score uses
+fewer labels at every level ($2.16$ against $2.97$ at $\alpha=0.05$; $1.05$
+against $2.00$ at $\alpha=0.2$), and at $\alpha=0.2$ it over-covers where APS
+under-covers ($0.825$ against $0.794$ for a nominal $0.80$). The gap in
+coverage between the two score families is therefore not an artefact of the
+one level the paper reports in its tables.
+
+\subsection{Calibration-cohort size and the label budget}
+\label{sec:results-cohort-size}
+
+\Cref{tab:cohort-size} isolates the calibration-cohort axis by subsampling
+$k$ of the four calibration subjects, refitting the pooled threshold, and
+repeating the subsample fifty times. Marginal coverage of the pooled APS
+threshold converges quickly in $k$, but the worst of its four test subjects
+--- a per-run minimum, averaged over runs, not the merged-cohort worst
+patient --- plateaus around $0.84$, six points below nominal; the deficit
+score's corresponding statistic is flat in $k$ ($0.848$ at $k=1$, $0.849$ at
+$k=4$). The patient gap is therefore not calibration-sampling noise: it is
+present with a single calibration subject and essentially unchanged with all
+four. Adding calibration patients buys a less noisy estimate of the wrong
+quantity.
+
+\Cref{fig:budget} reports the label-budget regime.
+Proposition~\ref{prop:shrinkage} says the optimal shrinkage weight rises with
+the warm-up budget $m$; the obstacle is estimating it. Warm-up from the new
+patient helps only if the shrinkage weight is chosen well, and at this cohort
+size leave-one-subject-out selection cannot choose it. The criterion is
+degenerate: it returns $\lambda=0$ at every budget up to $m=80$ in
+$16$ of the $30$ runs, and where it does select a positive weight the choice
+is unstable across folds and seeds --- at $m=80$ the same budget selects $0$,
+$0.25$, $0.5$, $0.75$ and $1$ in different runs. Merging per-subject coverage
+across folds, the curve does not improve and the largest budget degrades it:
+worst-patient coverage is $0.774$ at $m=0$ and $0.769$ at $m=320$, with no
+budget in between exceeding $0.783$.
+
+\Cref{tab:sacp-lambda} holds the shrinkage weight fixed instead of selecting
+it, and shows how much of the loss is the selection rule. Short warm-ups are
+not marginal, they are catastrophic: at $m=20$ the worst patient falls from
+$0.780$ under the pooled threshold to $0.685$ at $\lambda=0.5$ and $0.590$ at
+$\lambda=1$. At $m=160$ the same weights leave the worst patient at $0.788$
+and $0.797$ against $0.772$ for the pooled threshold --- a gain of at most two
+and a half points, against the thirteen-point gap to the oracle --- and at
+$m=320$ the ordering reverses ($0.766$ pooled, $0.776$ at $\lambda=0.5$,
+$0.755$ at $\lambda=1$). So the degeneracy of the selection is not the whole
+story: even a fixed, generous weight cannot close the patient gap at this
+cohort size, and at small budgets it does much worse.
+
+The mechanism is visible in what a warm-up actually contains. A warm-up is a
+poor sample of the night it is deployed on.
+At $m=160$ it covers the first $80$ minutes, in which wake accounts for
+$42\%$ of epochs and REM for none, against $18\%$ and $20\%$ over the rest of
+the night (reproduced by \texttt{scripts/warmup\_composition.py}), so the
+threshold is estimated on one stage mix and applied to another. At $m=20$ the
+estimate is also built from twenty epochs, so it carries the variance term of
+\Cref{eq:shrink-bound} on top of the bias.
+
+\input{tables/tab_sacp_lambda}
+
+We report this as a negative result rather than a design choice. With four
+calibration subjects there is too little held-out data to separate the gain
+from adapting the threshold to the new patient from the loss from estimating
+it on a handful of epochs, and the selected weight appears to be decided by
+which of the four subjects happens to be hardest. The label-free
+$k$-nearest-subject variant fails for a structural reason: with four
+calibration subjects, $k=3$ already draws on most of the pool and gives the
+worst patient $0.759$, below the pooled $0.774$, while $k\ge5$ is the whole
+pool and returns the pooled threshold exactly. With four subjects there is
+no neighbourhood to select. Section~\ref{sec:results-aci} gives the alternative
+that needs no warm-up labels at all.
+
+\Cref{fig:pareto} puts the same sweep on the efficiency--reliability plane.
+Across a factor of $32$ in label budget the warm-up path stays within a
+tenth of a label and one point of worst-patient coverage of the pooled point,
+and never approaches the oracle anchor, which sits at essentially the same set
+size but at nominal worst-patient coverage. The shortfall is
+therefore not a question of choosing a better budget: it is the distance
+between what a per-patient threshold could do with the patient's own labels
+and what any warm-up rule achieves.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.72\linewidth]{fig3_pareto.pdf}
+  \caption{Worst-patient coverage against mean set size along the warm-up
+  budget $m\in\{10,\dots,320\}$, with the shrinkage weight selected by
+  leave-one-subject-out simulation at each budget. The blue point is pooled
+  calibration, which is also the $m=0$ rule, and the teal point is the oracle
+  per-patient threshold computed on the test patient's own labels. The path
+  stays next to the pooled point across the whole budget range, and the
+  distance to the oracle is what no warm-up rule closes.}
+  \label{fig:pareto}
+\end{figure}
+
+\input{tables/tab_cohort_size}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{fig1_budget.pdf}
+  \caption{Left: marginal, $p_{10}$ and worst-patient coverage against the
+  number of labelled warm-up epochs from the new patient. Right: the
+  corresponding mean prediction-set size. The horizontal line marks nominal
+  coverage.}
+  \label{fig:budget}
+\end{figure}
+
+\subsection{Per-patient adaptation collapses the coverage spread}
+\label{sec:results-aci}
+
+\Cref{tab:aci} is the central result. Pooled calibration leaves a spread of
+$0.051$ across patients and a worst patient at $0.774$. Running one ACI
+stream per patient, with the step scale chosen on held-out calibration
+streams, collapses the spread to $0.012$ and lifts the worst patient to
+$0.886$, at a mean set size of $2.49$ against $2.54$. The deficit score
+inherits the correction: its worst patient moves from $0.792$ to $0.872$ at
+essentially unchanged set size ($1.53$ to $1.58$), so the efficiency gain of
+\Cref{sec:results-score} and the spread collapse of this section compose.
+
+The comparison is paired by patient, and we test the quantity the section is
+about rather than the mean. Mean per-patient coverage changes little and not
+significantly ($0.896$ to $0.904$, Wilcoxon signed-rank $p=0.84$), but the
+distance of a patient's coverage from nominal is smaller under ACI for
+$19$ of the $20$ patients (median reduction $0.025$, $p=9.5\times10^{-6}$),
+and smaller than under Mondrian for $19$ of $20$ ($p=3.8\times10^{-6}$). The
+one patient who moves away from nominal is above it under both rules and
+moves by six thousandths (from $0.908$ to $0.914$), well inside the
+run-to-run spread. Mondrian is the nearest
+alternative on this statistic, and it is not distinguishable from pooled
+calibration ($12$ of $20$, $p=0.43$), which is why we read the Mondrian
+changes in \Cref{sec:results-patient} as directionally right but not
+significant on this cohort.
+
+\Cref{tab:aci-sweep} reports the same experiment at each step scale rather
+than at the selected one. The worst patient improves monotonically in
+$\gamma_0$ for both scores, from $0.810$ to $0.888$ (APS) and from $0.828$ to
+$0.882$ (deficit), and the mean absolute deviation from nominal falls from
+$0.030$ to $0.006$ and from $0.026$ to $0.006$. Larger steps are not free: the
+fraction of patients below nominal rises from $0.40$ to $0.75$ (APS), because
+the recursion pulls every stream toward the marginal rate, and once the spread
+has collapsed it is the mean, not the worst patient, that becomes the binding
+quantity. The grid stops at $\gamma_0=0.1$ for that reason --- the
+spread reduction has saturated while the fraction below nominal is still rising.
+The LOSO-selected value ($0.062$ for APS, $0.075$ for the deficit score) sits
+below the grid's best row and costs two thousandths of worst-patient coverage
+for APS and one point for the deficit score, relative to the best fixed value
+in hindsight; that is the price of choosing without the test cohort, and both
+are small against the eleven- and eight-point gains over pooled calibration.
+
+One property of \Cref{eq:step} deserves an explicit check. The schedule has
+$\sum_t\gamma_t^2=\infty$ and therefore falls outside the
+square-summability condition under which the long-run ACI bound is proved, so
+the improvement above cannot be attributed to the theory. Repeating the
+identical experiment with $\gamma_t=\gamma_0/(t+2)^{0.6}$, which does meet the
+condition, leaves the conclusion in place and slightly weaker: worst-patient
+coverage $0.877$ against $0.774$ for pooled calibration, per-patient SD
+$0.015$ against $0.051$, at a mean set size of $2.51$. The faster-decaying
+step adapts more slowly within a night, which is the expected
+price of a guarantee that the default schedule does not carry. That guarantee
+is \Cref{cor:per-patient}, and it is asymptotic: it says that each patient's
+realised miscoverage converges to $\alpha$ as the stream grows, while a night
+contributes only a few hundred epochs, so it predicts the direction of the
+effect rather than its size. The default schedule is left in the paper
+because it is what an implementation would use; the poly-schedule run is
+there so that the reader can see the size of the effect under a schedule for
+which the corollary actually applies.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.9\linewidth]{fig2_subjects.pdf}
+  \caption{Per-patient coverage under pooled calibration and under per-patient
+  ACI, one line segment per patient, sorted by pooled coverage. Patients to
+  the left of the nominal line gain coverage; patients to the right give up
+  coverage they did not need.}
+  \label{fig:subjects}
+\end{figure}
+
+\Cref{fig:subjects} shows the mechanism directly. The reallocation is the
+point: the mean coverage is unchanged, and a fraction of patients end up a
+hair below nominal by construction, so the fraction-below statistic is not
+informative here --- the dispersion and the worst patient are. A single
+stream over all patients cannot do this by construction: it returns one
+threshold for every patient, so it can move the marginal rate but not the
+per-patient dispersion, which is the reason we run one stream per patient.
+We therefore do not tabulate a single-stream variant; the comparison that
+matters is against the pooled threshold, which is exactly what a single
+stream converges to.
+
+\input{tables/tab_aci}
+\input{tables/tab_aci_sweep}
+
+\subsection{Sequence constructors: a negative result}
+\label{sec:results-temporal}
+
+\Cref{tab:temporal} reports the dynamic-programming constructors alongside
+their per-epoch comparators. The first block uses every test epoch and
+includes the per-stage deficit threshold of \Cref{sec:results-score}, so that
+the score-family comparison is in one place; the constructor blocks use only
+the epochs inside complete blocks, and the per-epoch baseline immediately
+above the SeqCP-Margin block is recalibrated on exactly those epochs. Three
+observations follow, and they are the reason we do not present these
+constructors as a contribution.
+
+\emph{At $\beta=0$ the margin constructor is exactly per-epoch split CP} on the
+deficit score (Proposition~\ref{prop:reduction}). The numerical check in the
+test suite confirms the identity to machine precision, and
+\Cref{tab:temporal} confirms it at the level of realised coverage and set
+size: the $\beta=0$ row and the baseline above it agree to every reported
+digit. This is not a nuisance: it is what allows the $\beta>0$ rows to be
+interpreted as the effect of the transition term alone.
+
+\emph{At $\beta>0$ the sets get larger.} The block-level set is a union over
+admissible sequences, and the transition penalty makes low-transition
+sequences cheap; at $\beta\ge0.5$ a constant sequence is admissible for every
+label, the projection is the whole label set, and sequence coverage is
+$1.000$ by triviality. The simultaneous guarantee of
+Theorem~\ref{thm:projection} holds and is vacuous. \Cref{tab:temporal}'s
+SeqCP-Block rows show this directly.
+
+\emph{The transition structure is already in the score.} The smoothed
+posterior that the deficit score is computed from has absorbed the same
+Markov structure that the dynamic program is meant to exploit. Re-imposing it
+at the level of the set adds looseness rather than information. This is why
+the efficiency gain in \Cref{sec:results-score} comes from smoothing, not
+from sequence construction, and it is the substantive lesson of the
+ablation.
+
+\Cref{fig:hypnogram} shows the consequence on a real recording: pooled APS
+produces sets that flicker at transitions, the deficit score produces stable
+singleton sets through stable stretches and wider sets at transitions, and
+per-patient ACI widens the sets for a patient whose pooled coverage was low.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{fig4_hypnogram.pdf}
+  \caption{A \num{160}-epoch window of one test recording (subject SC409),
+  chosen because it spans a stage transition. Top: the scored hypnogram.
+  Panels: one row per stage, with a shaded cell where that stage is in the
+  prediction set under pooled APS, smoothed deficit, and per-patient ACI. The
+  black dots repeat the true stage inside each panel, so an epoch is covered
+  exactly when its dot lies on a shaded cell; the label count and coverage
+  printed with each panel are over this window only.}
+  \label{fig:hypnogram}
+\end{figure}
+
+\input{tables/tab_temporal}
+
+\subsection{Robustness to hardware shift and input corruption}
+\label{sec:results-shift}
+
+\Cref{tab:shift} reports coverage under hardware shift: the model is trained
+on one Sleep-EDF cohort (cassette or telemetry), calibrated on four held-out
+subjects of that cohort, and tested on the other. The ranking of scores
+changes. The deficit score, the most efficient in-cohort, is also the most
+fragile: pooled coverage falls from $0.889$ to $0.835$ (cassette to telemetry)
+and $0.878$ (telemetry to cassette), and the worst patient falls to $0.714$
+and $0.678$. Two mechanisms contribute --- the forward--backward pass uses
+transition matrices estimated from source-cohort labels, and the posterior
+sharpness changes with the signal statistics of the target cohort. Pooled APS
+holds coverage better --- it over-covers at $0.933$ in one direction and sits
+at $0.886$ in the other --- but its worst patient is at $0.799$ and $0.789$,
+and it pays with the largest sets ($2.68$ and $2.20$ labels per epoch).
+Per-patient ACI, which adapts on the target stream and therefore does not
+assume the calibration cohort matches the target population, brings marginal
+coverage back to between $0.896$ and $0.913$ in both directions and lifts the
+worst patient to $0.883$ and $0.872$ for APS and to $0.878$ in both
+directions for the deficit score; for the deficit score this costs $32\%$ and
+$6\%$ in mean set size ($1.40\to1.84$ and $1.77\to1.87$).
+
+\Cref{tab:corruption} applies controlled corruptions to the test signals while
+calibration stays clean, and contrasts three thresholds: the clean one, one
+refitted on identically corrupted calibration signals, and one adapted online
+by per-patient ACI. The loss is not monotone in severity across corruption
+families, and it is not always a loss: a circular time shift, which preserves
+the spectrum, moves coverage by less than a thousandth and leaves accuracy
+unchanged, and zeroing a fifth of the epochs costs $1.3$ points of
+coverage for twelve points of accuracy. Where the corruption bites, the clean
+threshold fails catastrophically ($0.497$ coverage at $0\,\mathrm{dB}$ SNR,
+$0.141$ under $2\sigma$ baseline drift), and both adaptations restore
+coverage ($0.892$ and $0.929$ by recalibration; $0.893$ and $0.890$ by ACI).
+Recalibration restores more than the number: corrupted calibration and
+corrupted test signals are exchangeable again, so the split-conformal
+guarantee applies to the corrupted data. ACI makes no such argument --- it
+carries the long-run property of \Cref{sec:method-aci} --- and its values
+here are measured, not proved.
+
+The accuracy column is the reason to read that recovery carefully. Under the
+same two corruptions the classifier itself is at $0.257$ and $0.252$, against
+$0.802$ clean. What the recalibrated threshold restores is the truthfulness of
+the set, not the model, and it pays for the truth by reporting larger sets
+($3.44$ and $3.93$ labels per epoch against $3.00$ clean). ACI, which never
+sees corrupted calibration data, reaches the same coverage at $3.30$ and
+$3.32$. A deployment that reports only coverage would call this a recovery;
+one that reports coverage and set size sees a model that has stopped working
+and a predictor that says so --- which is the behaviour we want, provided the
+set size is reported.
+
+\input{tables/tab_shift}
+\input{tables/tab_corruption}
+
+\subsection{Extended cohort}
+\label{sec:results-cohort}
+
+The 78-subject cohort increases the number of test subjects per fold from four
+to fifteen or sixteen (and the calibration cohort from four to sixteen), and
+lets the worst-patient statistics be estimated with
+less noise. \Cref{tab:extended} reports the same headline comparison; the
+ordering of methods is unchanged and the pooled-to-per-patient gap is larger,
+from $0.641$ to $0.879$ (APS) against $0.774$ to $0.886$ in the 20-subject
+cohort. Part of that widening is mechanical, since the minimum is taken over
+nearly four times as many patients, but the per-patient SD says the same
+thing without an extremum: $0.067$ against $0.016$ for APS and $0.053$
+against $0.013$ for the deficit score, both larger than the corresponding
+$0.051$ and $0.045$ against $0.012$ and $0.010$ of \Cref{tab:aci}.
+
+\input{tables/tab_extended}

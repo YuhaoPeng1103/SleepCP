@@ -1,0 +1,128 @@
+\section{Experimental protocol}
+\label{sec:setup}
+
+\subsection{Splits}
+\label{sec:splits}
+
+\paragraph{Subject-wise folds}
+Subjects are shuffled once and partitioned into five blocks. Fold $f$ tests
+on block $f$, calibrates on four subjects drawn from the remaining blocks
+(rotated across folds), and trains on the rest. The test blocks partition the
+cohort, so every subject contributes exactly one test set across the five
+folds, and no test epoch shares a subject with any calibration or training
+epoch of the same fold. Per-subject statistics are computed by merging the
+five folds and then averaging each subject's coverage over the seeds and
+backbones that re-run that partition. Each subject therefore contributes
+exactly one coverage value to the worst-patient and dispersion statistics,
+and the spread we report for them is the run-to-run spread of the training,
+not a spread over overlapping fold summaries.
+
+The four-subject calibration cohort is deliberate: it is the regime a
+hospital faces when it has a handful of scored nights, and it is where the
+marginal guarantee is weakest. \Cref{sec:results-cohort-size} varies the size
+explicitly.
+
+\paragraph{Random-epoch split}
+As a diagnostic we also train and calibrate with a 60/20/20 epoch-level
+random split. Calibration and test epochs then come from the same subjects,
+which is the protocol under which most published epoch-level numbers are
+computed. It is not a valid estimate of deployment performance, and we use it
+only to show how much of the coverage gap it hides.
+
+\paragraph{Cross-cohort}
+For the shift experiment, models are trained and calibrated on SC subjects
+and tested on ST subjects, and vice versa, with no subject overlap in either
+direction.
+
+\subsection{Models and training}
+\label{sec:models}
+
+Two backbones are used throughout so that conclusions are not tied to a
+single architecture: \texttt{eegnet}, a depthwise-separable convolutional
+network in the style of \citet{lawhern2018} with \num{1445} parameters, and
+\texttt{sleepcnn}, a four-block one-dimensional VGG-style network with global
+average pooling and \num{224069} parameters. Both take a
+$3000$-sample epoch and output a five-way softmax.
+
+Training uses AdamW (learning rate $10^{-3}$, weight decay $10^{-4}$), a
+cosine schedule, batch size 128, at most 40 epochs, and early stopping on a
+held-out subset of the training subjects. The loss is plain cross-entropy
+without class weights in every run reported here. Class weighting trades N1
+recall against the calibration of the output distribution, which is exactly
+the quantity CP consumes, and mixing the two settings across tables would
+make coverage numbers incomparable; we therefore fix one setting and record
+it in each run's metadata.
+
+In the main matrix every configuration is run with three seeds (0, 1, 2) and
+five folds, giving $15$ runs per backbone and $30$ in total; the extended
+cohort and the cross-cohort experiment use seed 0 only, so their numbers are
+single-seed estimates over five folds and two backbones, and the spread
+reported there is across those ten runs rather than across seeds. The
+run-to-run spread over seeds and backbones is
+reported as the uncertainty on every headline number of the main matrix, and
+per-subject statistics average a subject's coverage over those runs before
+any worst-patient or dispersion statistic is formed.
+
+\paragraph{Hardware and software}
+All experiments run on a single NVIDIA RTX 4060 Laptop GPU with PyTorch;
+preprocessing, conformal procedures and dynamic programs are NumPy and run on
+one CPU core. Training is seeded and cuDNN is pinned to deterministic kernels,
+so repeating a training run reproduces its test probabilities exactly; we
+verified this by retraining one fold while the rest of the matrix occupied the
+GPU and comparing the arrays. The released code reproduces every table and
+figure from the raw archives with the commands recorded in the repository
+README.
+
+\subsection{Conformal procedures and hyperparameters}
+\label{sec:conformal-setup}
+
+Unless stated otherwise $\alpha=0.1$. All thresholds are computed on
+calibration subjects only. The procedures compared are:
+
+\begin{itemize}
+\item \emph{Pooled APS} and \emph{pooled RAPS} on the raw softmax, with the
+      split-conformal threshold \Cref{eq:split-cp}.
+\item \emph{Smoothed APS}: APS on the forward--backward posterior
+      \Cref{eq:forward-backward}.
+\item \emph{Smoothed deficit}: the score \Cref{eq:deficit} on the same
+      posterior.
+\item \emph{Per-stage thresholds}: the Mondrian construction of
+      \Cref{sec:scores}, applied to both the raw APS score and the smoothed
+      deficit score, so that the stage-level comparison uses the same scores
+      as the pooled one.
+\item \emph{SACP}: warm-up calibration with shrinkage \Cref{eq:shrunk-q}, for
+      label budgets $m\in\{0,10,20,40,80,160,320\}$ and $k\in\{3,5,10\}$
+      neighbours for the label-free variant, with $\lambda$ chosen by
+      leave-one-subject-out simulation on the calibration subjects.
+\item \emph{Per-patient ACI}: one stream per patient \Cref{eq:aci-patient},
+      with $\gamma_0$ chosen by leave-one-subject-out simulation from
+      $\{0.005,0.01,0.02,0.05,0.1\}$.
+\item \emph{SeqCP-Margin} and \emph{SeqCP-Block}: the sequence constructors of
+      \Cref{sec:method-seq}, for block lengths $L\in\{10,20,30\}$ and
+      transition weights $\beta\in\{0,0.5,1,2\}$.
+\item \emph{Oracle}: per-subject thresholds computed on the test subject's
+      own labels. Not deployable; it is the lower bound on set size at
+      nominal coverage and shows how much room per-patient adaptation has.
+\end{itemize}
+
+HMM transitions are estimated from the training labels with Laplace
+smoothing. Block-level comparisons restrict all methods to exactly the epochs
+inside complete blocks, and the per-epoch baselines in those comparisons are
+recalibrated on the same calibration epochs, so the block-length comparison
+isolates the construction rather than the calibration sample.
+
+\subsection{Metrics}
+\label{sec:metrics}
+
+Coverage is reported marginal, per stage, and per subject; from the
+per-subject values we report the mean, the 10th percentile, the worst subject
+and the fraction of subjects below nominal. Efficiency is reported as mean set
+size, singleton rate and review workload, the fraction of epochs whose set
+contains more than one stage and would therefore need adjudication. Temporal
+behaviour is reported with the
+Jaccard consistency statistic of \Cref{sec:notation} and with sequence
+coverage, the fraction of complete blocks all of whose epochs are covered.
+Classification quality is reported with accuracy, Cohen's kappa, macro-F1 and
+expected calibration error (15 equal-mass bins), so that the coverage results
+can be read against the underlying model quality.
+

@@ -1,0 +1,28 @@
+cff-version: 1.2.0
+message: "If you use this code, please cite the manuscript below."
+title: "Patient-adaptive conformal prediction sets for reliable single-channel EEG sleep staging"
+abstract: >-
+  Code and analysis for a study of split conformal prediction on five-class
+  Sleep-EDF staging with subject-wise folds. The repository contains the
+  smoothed posterior deficit score, per-patient adaptive conformal inference,
+  the sequence constructors reported as a negative result, and every script
+  that regenerates the tables and figures of the paper.
+type: software
+authors:
+  - family-names: Song
+    given-names: Zhiwen
+    affiliation: "School of Mathematics and Physics, China University of Geosciences (Wuhan), Wuhan 430074, China"
+  - family-names: Peng
+    given-names: Yuhao
+    affiliation: "School of Mathematics and Physics, China University of Geosciences (Wuhan), Wuhan 430074, China"
+    email: pngyuo@cug.edu.cn
+    orcid: "https://orcid.org/0009-0004-3302-9050"
+keywords:
+  - sleep staging
+  - single-channel EEG
+  - conformal prediction
+  - uncertainty quantification
+  - subject variability
+version: 0.1.0
+repository-code: "https://github.com/YuhaoPeng1103/SleepCP"
+license: MIT

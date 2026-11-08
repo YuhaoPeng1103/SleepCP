@@ -1,0 +1,20 @@
+\begin{table}[t]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\caption{Coverage at the most severe level of each input corruption, applied to the test signals only. Accuracy is the corrupted model's own epoch accuracy and does not depend on any threshold. ``Clean threshold'' is the split-conformal threshold fitted on clean calibration data; ``recalibrated'' refits the threshold on calibration signals corrupted identically, and the following column is the mean set size it returns; ``per-patient ACI'' adapts the threshold online on the corrupted stream using the clean calibration set, again with its mean set size. One representative run (EEGNet, fold 0) is reported because the corruption is a property of the model and the split rather than of the fold.}
+\label{tab:corruption}
+\resizebox{\ifdim\width>\linewidth \linewidth\else\width\fi}{!}{%
+\begin{tabular}{llrrrrrr}
+\toprule
+Corruption & Severity & Accuracy & Clean threshold & Recalibrated & Recal.\ size & Per-patient ACI & ACI size \\
+\midrule
+None & -- & 0.802 & 0.936 & 0.936 & 3.00 & 0.936 & 3.00 \\
+Noise & 0 dB SNR & 0.257 & 0.497 & 0.892 & 3.44 & 0.893 & 3.30 \\
+Amplitude scale & $\times 1.5$ & 0.717 & 0.831 & 0.964 & 2.90 & 0.896 & 2.38 \\
+Baseline drift & $2\sigma$ wander & 0.252 & 0.141 & 0.929 & 3.93 & 0.890 & 3.32 \\
+Circular time shift & 5 s & 0.802 & 0.936 & 0.937 & 3.00 & 0.902 & 2.65 \\
+Epoch dropout & 20\% & 0.683 & 0.923 & 0.921 & 3.17 & 0.902 & 3.06 \\
+\bottomrule
+\end{tabular}}
+\end{table}

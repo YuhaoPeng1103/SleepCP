@@ -1,0 +1,208 @@
+\section{Materials and methods}
+\label{sec:method}
+
+\Cref{fig:pipeline} summarises the pipeline. A frozen backbone produces a
+per-epoch distribution; an HMM fitted to the training labels smooths it over
+the recording; a nonconformity score turns the smoothed posterior into a
+scalar level; and one of three calibration rules --- pooled split CP, a
+subject-adaptive warm-up, or a per-patient adaptive stream --- turns that
+level into a prediction set. We describe each step and state the assumption
+it needs.
+
+\begin{figure}[t]
+  \centering
+  \resizebox{\linewidth}{!}{%
+  \begin{tikzpicture}[
+    node distance=5mm and 6mm,
+    box/.style={draw, rounded corners=2pt, align=center,
+                minimum height=9mm, inner sep=3pt, font=\small},
+    cal/.style={box, fill=black!5},
+    arr/.style={-{Latex[length=1.6mm]}, thick},
+    lab/.style={font=\scriptsize\itshape, text=black!70}]
+    \node[box] (x) {EEG epoch\\$X_t\in\bR^{3000}$};
+    \node[box, right=of x] (f) {frozen\\backbone $f$};
+    \node[box, right=of f] (p) {softmax\\$p_t$};
+    \node[box, right=of p] (h) {HMM\\forward--backward};
+    \node[box, right=of h] (g) {posterior\\$\gamma_t$};
+    \node[box, below=of g] (s) {score\\$s_t(y)$};
+    \node[box, left=of s] (q) {threshold\\$\wh q(\alpha_t)$};
+    \node[box, left=of q] (c) {set\\$\cC_t$};
+    \draw[arr] (x) -- (f);
+    \draw[arr] (f) -- (p);
+    \draw[arr] (p) -- (h);
+    \draw[arr] (h) -- (g);
+    \draw[arr] (g) -- (s);
+    \draw[arr] (s) -- (q);
+    \draw[arr] (q) -- (c);
+    \node[cal, below=9mm of q, xshift=-8mm, text width=42mm] (cal)
+      {calibration subjects\\ $\{S_{j,t}\}$ $\to$ pooled quantile};
+    \draw[arr, dashed] (cal) -- (q);
+    \node[cal, below=9mm of s] (fb) {review: $Y_t$ after $\cC_t$};
+    \draw[arr, dashed] (c.south) .. controls ++(0,-14mm) and ++(20mm,-14mm) .. (fb.west);
+    \draw[arr, dashed] (fb.north) -- (s.south);
+    \node[lab, above=1mm of h] {transitions from training labels};
+  \end{tikzpicture}}%
+  \caption{Overview. The backbone is frozen and the HMM transitions are
+  estimated from training labels. The threshold comes from the calibration
+  subjects; the online rule uses the reviewed label as feedback. The dashed
+  path exists only in the per-patient adaptive regime.}
+  \label{fig:pipeline}
+\end{figure}
+
+\subsection{Data}
+\label{sec:data}
+
+\paragraph{Sleep-EDF}
+We use the Sleep-EDF Expanded corpus from PhysioNet
+\citep{kemp2000,goldberger2000}, single-channel Fpz--Cz EEG at
+\SI{100}{\hertz}. Two cohorts are used. \emph{Sleep-EDF-20} is the
+20-subject cohort (SC400--SC419) commonly used in the sleep-staging
+literature: 39 recordings, \num{42368} epochs after cropping, of which
+\num{42307} carry a stage label (the remaining epochs sit inside the cropped
+window but fall between scored annotations). The
+\emph{extended cohort} adds the remaining cassette recordings (SC400--SC482),
+giving 78 subjects and 153 recordings, and is used for the
+statistical-power analysis in \Cref{sec:results-cohort}.
+
+\paragraph{Telemetry cohort}
+Sleep-EDF also contains a telemetry subset (ST700--ST721, 22 subjects,
+44 recordings) recorded with different hardware on a different patient
+group. It is never used for training or calibration in the cross-cohort
+experiment, so it provides a genuine hardware-and-population shift rather
+than a resampling of the same distribution.
+
+\paragraph{Preprocessing}
+Each recording is band-pass filtered to \SIrange{0.5}{30}{\hertz}, segmented
+into \SI{30}{\second} epochs, and $z$-scored per recording. A label is
+assigned to an epoch when at least 50\% of it overlaps a scored annotation.
+R\&K stage~4 is merged into N3 following the AASM rule
+\citep{berry2012manual}, because keeping it as a separate class would create a
+sixth category with a handful of epochs and no modern counterpart.
+
+Each recording is cropped to the scored sleep period plus 30 minutes of wake
+on either side. Keeping every annotated epoch instead yields a cohort of over
+\num{112000} epochs that is $65\%$ wake, which matches no published
+result and distorts the class priors; the crop reproduces the canonical
+Sleep-EDF-20 cohort with priors W $19.6\%$, N1 $6.6\%$, N2
+$42.1\%$, N3 $13.5\%$ and REM $18.2\%$. The crop is applied
+identically to every cohort and is part of the released code. Subject-wise
+folds, training, and the evaluation metrics are described in
+\Cref{sec:setup}.
+
+\subsection{Notation and problem setting}
+\label{sec:notation}
+
+Let $i$ index subjects, $r$ recordings and $t$ epochs. A subject is one
+patient (one or two recordings), and we use the two words interchangeably.
+Each epoch has an input
+$X_t\in\bR^{3000}$ (30\,s of a single EEG channel at \SI{100}{\hertz}) and a
+label $Y_t\in\cY=\{W,N1,N2,N3,REM\}$ with $|\cY|=5$. A backbone $f$, trained
+on subjects disjoint from the test subject, outputs
+$p_t=\operatorname{softmax}(f(X_t))\in\Delta^{4}$, where $\Delta^4$ is the
+probability simplex. We are given labelled calibration data from subjects
+disjoint from the test subject, and we must output a set
+$\cC_t\subseteq\cY$ such that
+\begin{equation}
+\bP\big(Y_t\in\cC_t\big)\ \ge\ 1-\alpha
+\label{eq:coverage}
+\end{equation}
+at a nominal level $\alpha$, while keeping $|\cC_t|$ small, because every
+epoch with $|\cC_t|>1$ is an epoch a human has to look at.
+
+Two remarks fix what \Cref{eq:coverage} does and does not say. First, the
+probability is over the draw of calibration and test data, not over
+subjects: it is a \emph{marginal} statement, and a predictor can satisfy it
+while failing on a subset of patients. Second, in sleep staging the
+natural exchangeable unit is arguably the patient rather than the epoch,
+and the two differ exactly in the regime of interest, where patients are
+heterogeneous.
+
+We report, alongside coverage, the \emph{set size} $|\cC_t|$, the
+\emph{singleton rate} $\bP(|\cC_t|=1)$, the \emph{review workload}
+$\bP(|\cC_t|>1)$, the fraction of epochs with more than one admissible stage,
+the \emph{empty rate} $\bP(|\cC_t|=0)$, which also returns an epoch to the
+reviewer and which the workload does not count, and a \emph{temporal
+consistency} statistic, the mean Jaccard
+overlap of the sets at adjacent epochs,
+\begin{equation}
+\mathrm{TC}=\frac{1}{|\mathcal{P}|}\sum_{(t,t+1)\in\mathcal{P}}
+\frac{|\cC_t\cap\cC_{t+1}|}{|\cC_t\cup\cC_{t+1}|},
+\end{equation}
+where $\mathcal{P}$ contains adjacent pairs inside a recording, so that
+recording boundaries are never counted. $\mathrm{TC}=1$ when neighbouring
+sets are identical and $0$ when they are disjoint.
+
+\subsection{Split conformal prediction}
+\label{sec:split-cp}
+
+Given a nonconformity score $s(x,y)$ for which smaller values indicate better
+agreement between input $x$ and candidate label $y$, split CP computes
+$S_j=s(X_j,Y_j)$ on $n$ calibration epochs and takes the
+$\lceil(n+1)(1-\alpha)\rceil/n$ empirical quantile,
+\begin{equation}
+\wh q=\operatorname{Quantile}_{\lceil(n+1)(1-\alpha)\rceil/n}\big(S_1,\dots,S_n\big),
+\qquad
+\cC(x)=\{y\in\cY:\ s(x,y)\le\wh q\}.
+\label{eq:split-cp}
+\end{equation}
+If the calibration and test epochs are exchangeable, then
+$\bP(Y\in\cC(X))\ge 1-\alpha$ and $\bP(Y\in\cC(X))\le 1-\alpha+1/(n+1)$: the
+guarantee is finite-sample and distribution-free, and both bounds are tight
+for the class of all distributions \citep{vovk2005,lei2018}.
+
+\subsection{Nonconformity scores}
+\label{sec:scores}
+
+The \emph{adaptive prediction set} score \citep{romano2020} is
+\begin{equation}
+s_{\aps}(x,y)=\sum_{y'\in\cY}p_{y'}(x)\,\ones\{p_{y'}(x)\ge p_y(x)\},
+\label{eq:aps}
+\end{equation}
+the cumulative probability mass of all classes at least as likely as $y$, so
+that $s_{\aps}\in[0,1]$ and smaller is better. Its set is the smallest
+collection of most-likely classes whose total mass reaches $\wh q$. RAPS
+\citep{angelopoulos2021raps} adds a rank penalty $\lambda_{\mathrm{reg}}\max(0,\mathrm{rank}(y)-k_{\mathrm{reg}})$
+to discourage a long tail of unlikely labels.
+
+APS is heavy-tailed near one whenever the model is badly wrong, which forces
+the calibration quantile up and inflates every set. For the temporal
+component we therefore use the \emph{posterior deficit}
+\begin{equation}
+s_{\mathrm{def}}(x,y)=\max_{k\in\cY}\gamma_x(k)-\gamma_x(y),
+\label{eq:deficit}
+\end{equation}
+where $\gamma_x$ is a smoothed posterior (\Cref{sec:method-smoothing}). This
+score is bounded in $[0,1]$, is zero exactly at the maximum-posterior stage,
+and measures how far a candidate is from the posterior's mode.
+
+A \emph{class-conditional} (Mondrian) construction \citep{vovk2012} replaces
+the pooled quantile by one quantile per stage,
+\begin{equation}
+\wh q_y=\operatorname{Quantile}_{\lceil(n_y+1)(1-\alpha)\rceil/n_y}
+\big(\{S_j:\ Y_j=y\}\big),
+\label{eq:mondrian}
+\end{equation}
+where $n_y$ is the number of calibration epochs of stage $y$, and sets
+$\cC(x)=\{y\in\cY: s(x,y)\le\wh q_y\}$. The guarantee then holds within each
+stage, $\bP(Y\in\cC(X)\mid Y=y)\ge 1-\alpha$, at the price of a smaller
+calibration set per class; it is the baseline we use whenever a comparison
+needs stage-level coverage rather than set size.
+
+\subsection{Adaptive conformal inference}
+\label{sec:aci}
+
+When exchangeability fails, adaptive conformal inference \citep{gibbs2021}
+updates the target miscoverage after each observed label,
+\begin{equation}
+\alpha_{t+1}=\alpha_t+\gamma_t\big(\alpha-\ones\{Y_t\notin\cC_t\}\big),
+\qquad
+\cC_t=\{y:\ s(X_t,y)\le \wh q(\alpha_t)\},
+\label{eq:aci}
+\end{equation}
+where $\wh q(\alpha_t)$ is the calibration quantile at level $1-\alpha_t$.
+Along an arbitrary stream, a bounded step keeps the long-run miscoverage
+within a term governed by the step size rather than letting it drift with the
+shift; \citet{angelopoulos2024} show that a decaying schedule with
+$\sum_t\gamma_t=\infty$ and $\sum_t\gamma_t^2<\infty$ makes that term vanish,
+which is the strongest form of the guarantee and the one the corollary below
+assumes.

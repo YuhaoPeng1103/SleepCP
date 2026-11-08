@@ -1,0 +1,25 @@
+\begin{table}[t]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\caption{Coverage over patients at $\alpha=0.1$. Per-subject coverage is merged across the five subject-wise folds, so each of the 20 subjects appears exactly once. The random-epoch row is the protocol that mixes epochs from all subjects between calibration and test; a per-patient decomposition under it would measure the shared epochs rather than the subject, so the row reports marginal coverage and set size only.}
+\label{tab:sacp}
+\resizebox{\ifdim\width>\linewidth \linewidth\else\width\fi}{!}{%
+\begin{tabular}{lrrrrrrr}
+\toprule
+Method & Coverage & Worst subj. & $p_{10}$ subj. & SD & Below & Set size & Singleton \\
+\midrule
+Random-epoch split & 0.901 & -- & -- & -- & -- & 2.542 & -- \\
+Pooled (APS) & 0.898 $\pm$ 0.038 & 0.774 & 0.822 & 0.0510 & 0.45 & 2.537 $\pm$ 0.207 & 0.167 $\pm$ 0.051 \\
+Pooled (RAPS) & 0.885 $\pm$ 0.037 & 0.785 & 0.836 & 0.0397 & 0.65 & 1.614 $\pm$ 0.206 & 0.472 $\pm$ 0.178 \\
+Mondrian (per class) & 0.896 $\pm$ 0.031 & 0.787 & 0.835 & 0.0480 & 0.45 & 2.294 $\pm$ 0.157 & 0.230 $\pm$ 0.062 \\
+$k$NN subject (APS) & 0.894 $\pm$ 0.040 & 0.759 & 0.828 & 0.0536 & 0.50 & 2.509 $\pm$ 0.214 & 0.170 $\pm$ 0.049 \\
+Warm-up SACP, $m=80$ & 0.897 $\pm$ 0.036 & 0.782 & 0.820 & 0.0496 & 0.40 & 2.552 $\pm$ 0.299 & 0.172 $\pm$ 0.055 \\
+Warm-up SACP, $m=320$ & 0.891 $\pm$ 0.031 & 0.769 & 0.829 & 0.0516 & 0.50 & 2.519 $\pm$ 0.151 & 0.155 $\pm$ 0.045 \\
+Oracle per patient & 0.901 $\pm$ 0.000 & 0.901 & 0.901 & 0.0004 & 0.00 & 2.492 $\pm$ 0.230 & 0.180 $\pm$ 0.058 \\
+Per-patient ACI (APS) & 0.904 $\pm$ 0.010 & 0.886 & 0.892 & 0.0117 & 0.50 & 2.491 $\pm$ 0.203 & 0.177 $\pm$ 0.060 \\
+Per-patient ACI (deficit) & 0.898 $\pm$ 0.007 & 0.872 & 0.891 & 0.0097 & 0.70 & 1.575 $\pm$ 0.271 & 0.831 $\pm$ 0.072 \\
+\bottomrule
+\end{tabular}}
+\par\vspace{2pt}{\footnotesize ``Coverage'' is marginal over epochs (mean $\pm$ SD over the runs); ``Worst subj.'' is the minimum per-subject coverage over the runs; ``Below'' is the fraction of subjects below $1-\alpha$; ``SD'' is the standard deviation of per-subject coverage. Each subject contributes one value per run, the runs being five folds $\times$ three seeds $\times$ two backbones; set size and singleton rate are averaged over the same runs.}
+\end{table}

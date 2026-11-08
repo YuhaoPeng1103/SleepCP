@@ -1,0 +1,19 @@
+\begin{table}[t]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\caption{Per-patient adaptive conformal inference at $\alpha=0.1$. Each patient is an independent stream; the step scale is chosen by leave-one-subject-out simulation on the calibration subjects and then applied unchanged to the test cohort.}
+\label{tab:aci}
+\resizebox{\ifdim\width>\linewidth \linewidth\else\width\fi}{!}{%
+\begin{tabular}{lrrrrrrrr}
+\toprule
+Method & Cov. & Worst & SD & MAD$_\alpha$ & Below & Size & Sing. & Cons. \\
+\midrule
+Global CP (APS) & 0.898 $\pm$ 0.038 & 0.774 & 0.051 & 0.040 & 0.450 & 2.537 $\pm$ 0.207 & 0.167 $\pm$ 0.051 & 0.680 $\pm$ 0.037 \\
+Global CP (deficit) & 0.889 $\pm$ 0.044 & 0.792 & 0.045 & 0.036 & 0.600 & 1.531 $\pm$ 0.325 & 0.841 $\pm$ 0.080 & 0.942 $\pm$ 0.018 \\
+Per-patient ACI (APS) & 0.904 $\pm$ 0.010 & 0.886 & 0.012 & 0.009 & 0.500 & 2.491 $\pm$ 0.203 & 0.177 $\pm$ 0.060 & 0.675 $\pm$ 0.020 \\
+Per-patient ACI (deficit) & 0.898 $\pm$ 0.007 & 0.872 & 0.010 & 0.007 & 0.700 & 1.575 $\pm$ 0.271 & 0.831 $\pm$ 0.072 & 0.940 $\pm$ 0.014 \\
+\bottomrule
+\end{tabular}}
+\par\vspace{2pt}{\footnotesize Coverage statistics merge per-subject coverage across folds and average each subject over the runs (folds $\times$ seeds $\times$ backbones). Mean LOSO-selected $\gamma_0$ over the runs: aps $= 0.0623$, deficit $= 0.075$. Set size and consistency are averaged over the same runs.}
+\end{table}

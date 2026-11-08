@@ -1,0 +1,82 @@
+\documentclass[10pt]{letter}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=0.82in]{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+
+\hypersetup{hidelinks}
+\setlength{\parskip}{0.5em}
+\setlength{\parindent}{0pt}
+
+\begin{document}
+
+\begin{flushright}
+Yuhao Peng\\
+School of Mathematics and Physics\\
+China University of Geosciences (Wuhan)\\
+Wuhan, Hubei 430074, China\\
+\href{mailto:pngyuo@cug.edu.cn}{pngyuo@cug.edu.cn}
+\end{flushright}
+
+\vspace{1em}
+8 November 2026
+
+\vspace{1em}
+Dear Editors,
+
+\textbf{Re: Submission of ``Patient-adaptive conformal prediction sets for
+reliable single-channel EEG sleep staging''}
+
+We submit the enclosed manuscript for consideration as a research paper in
+\emph{Biomedical Signal Processing and Control}.
+
+Single-channel EEG sleep staging is increasingly accurate, but a point
+prediction does not indicate which epochs need manual review. We reframe the
+output as a set of admissible sleep stages and study whether the resulting
+coverage guarantee remains useful when the unit of deployment is the patient
+rather than the epoch. Using subject-wise folds on Sleep-EDF, we show that a
+classifier with 0.898 pooled coverage leaves 45\% of patients below the
+nominal 0.90 level and its worst patient at 0.774. This failure is invisible
+to marginal coverage and to aggregate calibration error.
+
+The manuscript makes four contributions:
+
+\begin{enumerate}[leftmargin=1.2em,itemsep=0.08em,topsep=0.2em]
+\item a patient-centred evaluation protocol for set-valued sleep staging,
+including per-patient coverage, set size, review workload, and temporal
+consistency;
+\item a forward--backward posterior-deficit score that reduces the mean set
+from 2.54 to 1.53 stages and the review workload from 76\% to 16\% at
+comparable coverage;
+\item per-patient adaptive conformal inference, with its regularization
+chosen only on calibration subjects, which raises worst-patient coverage from
+0.774 to 0.886 without using test labels for tuning;
+\item an explicit negative result, with proofs, showing why dynamic-programming
+sequence construction does not improve on the smoothed per-epoch score.
+\end{enumerate}
+
+The work is positioned at the interface of EEG signal processing and
+trustworthy clinical decision support. It tests two neural backbones, one
+20-subject cohort, an independent 78-subject cohort, a hardware-shift cohort,
+and controlled signal corruptions. All results, the exact experimental
+protocol, and executable code are publicly available at
+\url{https://github.com/YuhaoPeng1103/SleepCP}.
+
+The manuscript is original, is not under consideration elsewhere, and has not
+been published previously. Both authors approved the submission. The authors
+declare no competing interests and received no specific funding for this
+work. We select the non-open-access publication route. We do not suggest
+reviewers.
+
+Thank you for considering the manuscript.
+
+\vspace{1.5em}
+Sincerely,
+
+\vspace{1.5em}
+Yuhao Peng\\
+On behalf of Zhiwen Song and Yuhao Peng
+
+\end{document}
