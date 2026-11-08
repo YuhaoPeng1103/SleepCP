@@ -58,8 +58,10 @@ venv/
 *.lof
 *.lot
 paper/qa*/
+paper/fig1_qa*/
 paper/submission/qa_*/
 paper/tex/*_extracted.txt
+.edge-profile-bspc/
 
 # ---------------------------------------------------------------------------
 # OS / editor
